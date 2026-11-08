@@ -164,13 +164,15 @@ interface LabActions {
   updateSpec: (nodeId: string, key: string, value: number) => void
   /** Apply an equipment profile's specs to a component. */
   applyProfile: (nodeId: string, profileId: string) => void
-  updateWire: (wireId: string, patch: Partial<Pick<Wire, 'gauge' | 'color' | 'length'>>) => void
+  updateWire: (wireId: string, patch: Partial<Pick<Wire, 'gauge' | 'color' | 'length' | 'bend'>>) => void
 
   zoomAt: (factor: number, cx?: number, cy?: number) => void
   fit: () => void
 
   viewportDown: (e: React.MouseEvent | MouseEvent) => void
   nodeDown: (id: string, e: React.MouseEvent) => void
+  /** Press on a wire: select it, and drag to move its middle segment (`bend`, the offset in use now, along `axis`). */
+  wireDown: (id: string, axis: 'x' | 'y', bend: number, e: React.MouseEvent) => void
   termDown: (n: string, t: string, e: React.MouseEvent) => void
   termUp: (n: string, t: string, e: React.MouseEvent) => void
   pointerMove: (e: MouseEvent) => void
@@ -189,6 +191,7 @@ type Drag =
   | { mode: 'pan'; sx: number; sy: number; ox: number; oy: number; moved: boolean }
   | { mode: 'node'; sx: number; sy: number; orig: Record<string, { x: number; y: number }>; moved: boolean }
   | { mode: 'wire'; sx: number; sy: number; moved: boolean }
+  | { mode: 'bend'; sx: number; sy: number; id: string; axis: 'x' | 'y'; orig: number; moved: boolean }
   | { mode: 'box'; sx: number; sy: number; wx: number; wy: number; base: string[]; moved: boolean }
 
 // Interaction state that must not trigger renders.
@@ -666,6 +669,19 @@ export const useLabStore = create<LabState & LabActions>()((set, get) => {
       })
       drag = { mode: 'node', sx: e.clientX, sy: e.clientY, orig, moved: false }
     },
+    wireDown: (id, axis, bend, e) => {
+      e.stopPropagation()
+      const s = get()
+      if (s.tool === 'pan' || e.button === 1 || panKey) {
+        const v = s.view
+        if (e.button === 0 || e.button === 1) drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, ox: v.x, oy: v.y, moved: false }
+        return
+      }
+      if (e.button !== 0 || s.pending) return
+      set({ sel: { nodes: [], wire: id }, termPicker: null })
+      revealDetails(get().sel)
+      if (s.tool === 'select') drag = { mode: 'bend', sx: e.clientX, sy: e.clientY, id, axis, orig: bend, moved: false }
+    },
     termDown: (n, t, e) => {
       e.stopPropagation()
       e.preventDefault()
@@ -717,6 +733,14 @@ export const useLabStore = create<LabState & LabActions>()((set, get) => {
         }
         const z = get().view.z
         set((s) => ({ nodes: s.nodes.map((n) => (d.orig[n.id] ? { ...n, x: snap(d.orig[n.id].x + dx / z), y: snap(d.orig[n.id].y + dy / z) } : n)) }))
+      } else if (d.mode === 'bend') {
+        if (!d.moved) {
+          d.moved = true
+          pushHist()
+        }
+        const delta = (d.axis === 'x' ? dx : dy) / get().view.z
+        const bend = Math.round((d.orig + delta) / 5) * 5
+        set((s) => ({ wires: s.wires.map((w) => (w.id === d.id && w.bend !== bend ? { ...w, bend } : w)) }))
       } else d.moved = true
     },
     pointerUp: () => {

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { taskById } from '@/content/tasks'
 import { CATALOG, DOMAIN_LABEL, LOAD_TYPES, SWITCH_SPEC, VOLTAGE_DROP_LIMIT, isBattery, isPv } from '@/engine/catalog'
 import { DESIGN_MIN_TEMP } from '@/engine/pv-model'
-import { terminal, terminalName } from '@/engine/geometry'
+import { terminal, terminalName, wireRoutes } from '@/engine/geometry'
 import { matchesProfile, nodeTitle, profileById, profilesFor, type EquipmentProfile } from '@/engine/profiles'
 import { measureNode } from '@/engine/measure'
 import { fixFor, ruleById } from '@/engine/rules'
@@ -362,6 +362,38 @@ function InspectorSelect<T extends string>({ value, items, onChange, className }
   )
 }
 
+const ROUTE_STEP = 10
+
+/** Keyboard-friendly alternative to dragging the wire on the sheet: shift its middle segment. */
+function WireRouteRow({ wire, nm }: { wire: Wire; nm: NodeMap }) {
+  const wires = useLabStore((s) => s.wires)
+  const style = useLabStore((s) => s.settings.wireStyle)
+  const { updateWire } = useLabStore.getState()
+  const route = wireRoutes(wires, nm, style)[wire.id]
+  if (!route) return null
+  const x = route.axis === 'x'
+  const shift = (dir: 1 | -1) => updateWire(wire.id, { bend: route.bend + dir * ROUTE_STEP })
+  const btn = 'h-6 min-w-7 border-(length:--bw) border-border bg-transparent px-1.5 text-[12px] font-semibold hover:bg-muted active:translate-y-0 dark:bg-transparent dark:hover:bg-muted'
+  return (
+    <div className={`flex items-center justify-between gap-2 px-3 py-1 ${ROW}`} title={t('Or drag the wire on the sheet. Double-click its handle to reset.')}>
+      <span className="text-muted-foreground">
+        {t('Route')} <span className="text-[11px]">· {t(wire.bend === undefined ? 'automatic' : 'manual')}</span>
+      </span>
+      <div className="flex gap-1">
+        <Button variant="outline" className={btn} aria-label={t(x ? 'Move wire left' : 'Move wire up')} onClick={() => shift(-1)}>
+          {x ? '◀' : '▲'}
+        </Button>
+        <Button variant="outline" className={btn} aria-label={t(x ? 'Move wire right' : 'Move wire down')} onClick={() => shift(1)}>
+          {x ? '▶' : '▼'}
+        </Button>
+        <Button variant="outline" className={btn} disabled={wire.bend === undefined} onClick={() => updateWire(wire.id, { bend: undefined })}>
+          {t('Auto')}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function WireInspector({ wire, v, nm }: { wire: Wire; v: ValidationResult; nm: NodeMap }) {
   const { updateWire } = useLabStore.getState()
   const r = v.wres[wire.id] ?? checkWire(wire, nm)
@@ -423,6 +455,7 @@ function WireInspector({ wire, v, nm }: { wire: Wire; v: ValidationResult; nm: N
         <span className="text-muted-foreground">{t('Wire colour')}</span>
         <InspectorSelect value={wire.color} items={COLORS} onChange={(color) => updateWire(wire.id, { color })} />
       </div>
+      <WireRouteRow wire={wire} nm={nm} />
 
       <SectionLabel className="px-3 pt-2.5 pb-0.5">{t('Connection validation')}</SectionLabel>
       {stages.map((st) => (

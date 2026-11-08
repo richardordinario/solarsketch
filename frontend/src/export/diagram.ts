@@ -4,7 +4,7 @@
  */
 import { CATALOG, CATALOG_VERSION, DOMAIN_LABEL, RULESET_VERSION } from '@/engine/catalog'
 import { nodeTitle } from '@/engine/profiles'
-import { HEADER_BLOCK_H, headerTop, isVertical, nodeSize, subText, terminal, terminalLocal, terminalPos, wirePath, type WireStyle } from '@/engine/geometry'
+import { HEADER_BLOCK_H, headerTop, isVertical, nodeSize, subText, terminal, terminalLocal, wireRoutes, type WireStyle } from '@/engine/geometry'
 import type { LabNode, TerminalType, Wire } from '@/engine/types'
 import { nodeMap, validate } from '@/engine/validation'
 
@@ -50,14 +50,13 @@ export function buildDiagramSvg(nodes: LabNode[], wires: Wire[], opts: DiagramOp
 
   out.push(`<rect x="${x0}" y="${y0}" width="${width}" height="${height}" fill="${PAPER}"/>`)
 
-  // Wires first so nodes sit on top.
+  // Wires first so nodes sit on top, routed exactly as on the sheet.
+  const routes = wireRoutes(wires, nm, style)
   for (const w of wires) {
     const na = nm[w.a.n]
     const nb = nm[w.b.n]
-    if (!na || !nb) continue
-    const a = terminalPos(na, w.a.t)
-    const b = terminalPos(nb, w.b.t)
-    const d = wirePath(a, b, style)
+    if (!na || !nb || !routes[w.id]) continue
+    const d = routes[w.id].d
     const ta = terminal(na, w.a.t)!.t
     const tb = terminal(nb, w.b.t)!.t
     const ty = ta === 'dc' ? tb : ta

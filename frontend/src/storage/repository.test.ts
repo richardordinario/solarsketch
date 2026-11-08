@@ -144,6 +144,12 @@ describe('import', () => {
     expect({ ...imported, id: doc.id, createdAt: doc.createdAt, updatedAt: doc.updatedAt }).toEqual(doc)
   })
 
+  it('keeps a manual wire route (bend) through export and import', () => {
+    const doc = sample()
+    doc.wires[0] = { ...doc.wires[0], bend: -30 }
+    expect(parseImport(serializeProject(doc)).wires[0].bend).toBe(-30)
+  })
+
   it.each([
     ['not json', '{', /not valid JSON/],
     ['not a project', '{"hello":1}', /not a SolarSketch project/],

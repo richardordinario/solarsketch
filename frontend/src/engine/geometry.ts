@@ -103,37 +103,150 @@ export type WireStyle = 'orthogonal' | 'curved'
 
 const STUB = 20
 
-export function wirePath(a: TerminalPoint, b: TerminalPoint, style: WireStyle) {
+/**
+ * Axis the wire's adjustable middle segment moves along: 'x' when the route leaves `a`
+ * horizontally (a vertical middle segment that slides left/right), 'y' otherwise.
+ */
+export const bendAxis = (a: TerminalPoint): 'x' | 'y' => (a.dy === 0 ? 'x' : 'y')
+
+/**
+ * Wire path between two terminals. `bend` moves the middle segment along `bendAxis` (world units),
+ * so overlapping wires can be separated; 0 gives the default route.
+ */
+export function wirePath(a: TerminalPoint, b: TerminalPoint, style: WireStyle, bend = 0) {
   const aH = a.dy === 0
   const bH = b.dy === 0
   if (style === 'curved') {
-    const ca = Math.max(40, (aH ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y)) / 2)
-    const cb = Math.max(40, (bH ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y)) / 2)
-    return `M${a.x},${a.y} C${a.x + a.dx * ca},${a.y + a.dy * ca} ${b.x + b.dx * cb},${b.y + b.dy * cb} ${b.x},${b.y}`
+    const [c1, c2] = curveControls(a, b, bend)
+    return `M${a.x},${a.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${b.x},${b.y}`
   }
   const p1 = { x: a.x + a.dx * STUB, y: a.y + a.dy * STUB }
   const p2 = { x: b.x + b.dx * STUB, y: b.y + b.dy * STUB }
   let mid: string
   if (aH && bH) {
-    const mx = (p1.x + p2.x) / 2
+    const mx = (p1.x + p2.x) / 2 + bend
     mid = `L${mx},${a.y} L${mx},${b.y}`
   } else if (!aH && !bH) {
-    const my = (p1.y + p2.y) / 2
+    const my = (p1.y + p2.y) / 2 + bend
     mid = `L${a.x},${my} L${b.x},${my}`
-  } else if (aH) mid = `L${p2.x},${p1.y}`
-  else mid = `L${p1.x},${p2.y}`
+  } else if (aH) mid = bend ? `L${p2.x + bend},${p1.y} L${p2.x + bend},${p2.y}` : `L${p2.x},${p1.y}`
+  else mid = bend ? `L${p1.x},${p2.y + bend} L${p2.x},${p2.y + bend}` : `L${p1.x},${p2.y}`
   return `M${a.x},${a.y} L${p1.x},${p1.y} ${mid} L${p2.x},${p2.y} L${b.x},${b.y}`
 }
 
-export function wireMidpoint(a: TerminalPoint, b: TerminalPoint, style: WireStyle) {
-  if (style === 'curved') return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+function curveControls(a: TerminalPoint, b: TerminalPoint, bend: number) {
+  const aH = a.dy === 0
+  const bH = b.dy === 0
+  const ca = Math.max(40, (aH ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y)) / 2)
+  const cb = Math.max(40, (bH ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y)) / 2)
+  const sx = aH ? bend : 0
+  const sy = aH ? 0 : bend
+  return [
+    { x: a.x + a.dx * ca + sx, y: a.y + a.dy * ca + sy },
+    { x: b.x + b.dx * cb + sx, y: b.y + b.dy * cb + sy },
+  ]
+}
+
+/** The adjustable middle segment of an orthogonal route (endpoints in world units). */
+function bendSegment(a: TerminalPoint, b: TerminalPoint, bend: number) {
   const p1 = { x: a.x + a.dx * STUB, y: a.y + a.dy * STUB }
   const p2 = { x: b.x + b.dx * STUB, y: b.y + b.dy * STUB }
   const aH = a.dy === 0
   const bH = b.dy === 0
-  if (aH && bH) return { x: (p1.x + p2.x) / 2, y: (a.y + b.y) / 2 }
-  if (!aH && !bH) return { x: (a.x + b.x) / 2, y: (p1.y + p2.y) / 2 }
-  return aH ? { x: p2.x, y: p1.y } : { x: p1.x, y: p2.y }
+  if (aH && bH) {
+    const x = (p1.x + p2.x) / 2 + bend
+    return { x1: x, y1: a.y, x2: x, y2: b.y }
+  }
+  if (!aH && !bH) {
+    const y = (p1.y + p2.y) / 2 + bend
+    return { x1: a.x, y1: y, x2: b.x, y2: y }
+  }
+  if (aH) return { x1: p2.x + bend, y1: p1.y, x2: p2.x + bend, y2: p2.y }
+  return { x1: p1.x, y1: p2.y + bend, x2: p2.x, y2: p2.y + bend }
+}
+
+export function wireMidpoint(a: TerminalPoint, b: TerminalPoint, style: WireStyle, bend = 0) {
+  if (style === 'curved') return wireHandle(a, b, style, bend)
+  const p1 = { x: a.x + a.dx * STUB, y: a.y + a.dy * STUB }
+  const p2 = { x: b.x + b.dx * STUB, y: b.y + b.dy * STUB }
+  const aH = a.dy === 0
+  const bH = b.dy === 0
+  if (aH && bH) return { x: (p1.x + p2.x) / 2 + bend, y: (a.y + b.y) / 2 }
+  if (!aH && !bH) return { x: (a.x + b.x) / 2, y: (p1.y + p2.y) / 2 + bend }
+  return aH ? { x: p2.x + bend, y: p1.y } : { x: p1.x, y: p2.y + bend }
+}
+
+/** Where the drag handle for the middle segment sits: its centre (the curve's midpoint when curved). */
+export function wireHandle(a: TerminalPoint, b: TerminalPoint, style: WireStyle, bend = 0) {
+  if (style === 'curved') {
+    const [c1, c2] = curveControls(a, b, bend)
+    return { x: (a.x + 3 * c1.x + 3 * c2.x + b.x) / 8, y: (a.y + 3 * c1.y + 3 * c2.y + b.y) / 8 }
+  }
+  const g = bendSegment(a, b, bend)
+  return { x: (g.x1 + g.x2) / 2, y: (g.y1 + g.y2) / 2 }
+}
+
+/** Gap between automatically separated parallel wires. */
+export const WIRE_LANE = 10
+const LANE_TRIES = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5]
+
+export interface WireRoute {
+  a: TerminalPoint
+  b: TerminalPoint
+  /** Middle-segment offset in use: the wire's own `bend`, or the automatic lane. */
+  bend: number
+  axis: 'x' | 'y'
+  d: string
+  mid: { x: number; y: number }
+  handle: { x: number; y: number }
+}
+
+/**
+ * Routes for every drawable wire. Wires without a manual `bend` whose middle segments would lie
+ * on top of another wire's (same axis, overlapping run, closer than a lane) are moved to the
+ * nearest free lane, in wire order, so parallel runs stay apart. Deterministic; display only.
+ */
+export function wireRoutes(wires: readonly { id: string; a: { n: string; t: string }; b: { n: string; t: string }; bend?: number }[], nm: Record<string, LabNode>, style: WireStyle): Record<string, WireRoute> {
+  type Seg = { axis: 'x' | 'y'; c: number; lo: number; hi: number }
+  const ends = wires.flatMap((w) => {
+    const na = nm[w.a.n]
+    const nb = nm[w.b.n]
+    if (!na || !nb || !terminal(na, w.a.t) || !terminal(nb, w.b.t)) return []
+    return [{ w, a: terminalPos(na, w.a.t), b: terminalPos(nb, w.b.t) }]
+  })
+  const segOf = (a: TerminalPoint, b: TerminalPoint, bend: number): Seg | null => {
+    const g = bendSegment(a, b, bend)
+    const axis = bendAxis(a)
+    const [lo, hi] = axis === 'x' ? [Math.min(g.y1, g.y2), Math.max(g.y1, g.y2)] : [Math.min(g.x1, g.x2), Math.max(g.x1, g.x2)]
+    // A zero-length middle segment (a straight wire) has nothing to separate.
+    return hi - lo < 1 ? null : { axis, c: axis === 'x' ? g.x1 : g.y1, lo, hi }
+  }
+  const placed: Seg[] = []
+  const clash = (s: Seg) => placed.some((o) => o.axis === s.axis && Math.abs(o.c - s.c) < WIRE_LANE - 0.5 && s.lo < o.hi - 0.5 && o.lo < s.hi - 0.5)
+  const bends: Record<string, number> = {}
+  for (const e of ends)
+    if (e.w.bend !== undefined) {
+      bends[e.w.id] = e.w.bend
+      const s = segOf(e.a, e.b, e.w.bend)
+      if (s) placed.push(s)
+    }
+  for (const e of ends) {
+    if (e.w.bend !== undefined) continue
+    let bend = 0
+    const base = style === 'orthogonal' ? segOf(e.a, e.b, 0) : null
+    if (base) {
+      const k = LANE_TRIES.find((n) => !clash({ ...base, c: base.c + n * WIRE_LANE })) ?? 0
+      bend = k * WIRE_LANE
+      placed.push({ ...base, c: base.c + bend })
+    }
+    bends[e.w.id] = bend
+  }
+  const out: Record<string, WireRoute> = {}
+  for (const { w, a, b } of ends) {
+    const bend = bends[w.id]
+    out[w.id] = { a, b, bend, axis: bendAxis(a), d: wirePath(a, b, style, bend), mid: wireMidpoint(a, b, style, bend), handle: wireHandle(a, b, style, bend) }
+  }
+  return out
 }
 
 /** Top-left position that keeps a card's centre in place when its size changes (e.g. on rotation). */

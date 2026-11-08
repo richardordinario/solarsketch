@@ -48,6 +48,7 @@ const wireSchema = z.object({
   color: z.enum(['auto', 'red', 'black', 'brown', 'blue', 'gy']),
   gauge: z.string().refine((g) => g in AMPACITY, 'is not a supported conductor size'),
   length: z.number().min(0.1).max(1000).optional(),
+  bend: z.number().min(-20000).max(20000).optional(),
 })
 
 const taskRef = z.object({ kind: z.enum(['practice', 'challenge']), id: z.string().min(1).max(80) })

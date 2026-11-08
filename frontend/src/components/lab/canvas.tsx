@@ -1,8 +1,8 @@
-import { Fragment, useCallback, useEffect, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { CATALOG, DOMAIN_LABEL, LOAD_TYPES, isBattery, isPv } from '@/engine/catalog'
 import { nodeTitle } from '@/engine/profiles'
-import { HEADER_BLOCK_H, VERTICAL_COL_W, headerTop, isVertical, nodeSize, rotationOf, subText, terminal, terminalLocal, terminalName, terminalPos, wireMidpoint, wirePath } from '@/engine/geometry'
+import { HEADER_BLOCK_H, VERTICAL_COL_W, headerTop, isVertical, nodeSize, rotationOf, subText, terminal, terminalLocal, terminalName, terminalPos, wireRoutes, type WireRoute } from '@/engine/geometry'
 import { FAULT_DEFS, isActive } from '@/engine/faults'
 import { wireFlows } from '@/engine/flows'
 import { clockStr, compute, isDaylight, type Measurements } from '@/engine/simulation'
@@ -337,13 +337,13 @@ function MarqueeLayer() {
   )
 }
 
-function WireLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
+function WireLayer({ v, nm, routes }: { v: ValidationResult; nm: NodeMap; routes: Record<string, WireRoute> }) {
   const wires = useLabStore((s) => s.wires)
   const selWire = useLabStore((s) => s.sel.wire)
   const pending = useLabStore((s) => s.pending)
   const mouse = useLabStore((s) => (s.pending ? s.mouse : null))
-  const style = useLabStore((s) => s.settings.wireStyle)
-  const select = useLabStore((s) => s.select)
+  const tool = useLabStore((s) => s.tool)
+  const { select, wireDown, updateWire } = useLabStore.getState()
   const vis = useWireVisibility(v, nm)
 
   const paths: React.ReactNode[] = []
@@ -351,16 +351,14 @@ function WireLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
   wires.forEach((w) => {
     const na = nm[w.a.n]
     const nb = nm[w.b.n]
-    if (!na || !nb || vis[w.id] === 'hide') return
+    const r = routes[w.id]
+    if (!na || !nb || !r || vis[w.id] === 'hide') return
+    const d = r.d
     if (vis[w.id] === 'dim') {
       // Faded context wire: visible for orientation, not clickable.
-      const d = wirePath(terminalPos(na, w.a.t), terminalPos(nb, w.b.t), style)
       paths.push(<path key={w.id} d={d} fill="none" style={{ stroke: 'var(--dim)', opacity: 0.25, pointerEvents: 'none' }} strokeWidth={1.5} strokeLinejoin="round" />)
       return
     }
-    const a = terminalPos(na, w.a.t)
-    const b = terminalPos(nb, w.b.t)
-    const d = wirePath(a, b, style)
     const ta = terminal(na, w.a.t)!.t
     const tb = terminal(nb, w.b.t)!.t
     const ty = ta === 'dc' ? tb : ta
@@ -372,12 +370,36 @@ function WireLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
       e.stopPropagation()
       select({ nodes: [], wire: w.id })
     }
+    // Press and drag a wire to move its middle segment apart from others.
+    const grab = (e: React.MouseEvent) => wireDown(w.id, r.axis, r.bend, e)
+    const moveCursor = tool === 'select' ? (r.axis === 'x' ? 'ew-resize' : 'ns-resize') : 'pointer'
     if (sel) paths.push(<path key={w.id + 's'} d={d} fill="none" style={{ stroke: 'var(--primary-soft)' }} strokeWidth={sw + 6} strokeLinejoin="round" />)
     paths.push(<path key={w.id} d={d} fill="none" style={{ stroke: col === 'gy' ? 'var(--term-pe)' : col }} strokeWidth={sw} strokeLinejoin="round" strokeDasharray={fail ? '7 5' : undefined} />)
     if (col === 'gy') paths.push(<path key={w.id + 'y'} d={d} fill="none" style={{ stroke: 'var(--term-pe-stripe)' }} strokeWidth={sw} strokeDasharray="6 6" strokeLinejoin="round" />)
-    paths.push(<path key={w.id + 'h'} d={d} fill="none" stroke="transparent" strokeWidth={12} style={{ cursor: 'pointer', pointerEvents: 'stroke' }} onMouseDown={pick} />)
+    paths.push(<path key={w.id + 'h'} d={d} fill="none" stroke="transparent" strokeWidth={12} style={{ cursor: sel ? moveCursor : 'pointer', pointerEvents: 'stroke' }} onMouseDown={grab} />)
+    if (sel && tool === 'select') {
+      // Drag handle on the middle segment; double-click returns the wire to the automatic route.
+      paths.push(
+        <rect
+          key={w.id + 'g'}
+          x={r.handle.x - 5}
+          y={r.handle.y - 5}
+          width={10}
+          height={10}
+          style={{ fill: 'var(--background)', stroke: 'var(--primary)', cursor: moveCursor, pointerEvents: 'all' }}
+          strokeWidth={2}
+          onMouseDown={grab}
+          onDoubleClick={(e) => {
+            e.stopPropagation()
+            if (w.bend !== undefined) updateWire(w.id, { bend: undefined })
+          }}
+        >
+          <title>{t('Drag to move this wire. Double-click to reset its route.')}</title>
+        </rect>,
+      )
+    }
     if (fail) {
-      const p = wireMidpoint(a, b, style)
+      const p = r.mid
       const crit = fail.sev === 'critical'
       badges.push(
         <div
@@ -408,7 +430,7 @@ function WireLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
 }
 
 /** Moving dots along wires that carry current (direction and speed from engine/flows.ts). */
-function FlowLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
+function FlowLayer({ v, nm, routes }: { v: ValidationResult; nm: NodeMap; routes: Record<string, WireRoute> }) {
   const show = useLabStore((s) => s.settings.showFlow)
   const started = useLabStore((s) => s.sim.started)
   const running = useLabStore((s) => s.running)
@@ -417,7 +439,6 @@ function FlowLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
   const faults = useLabStore((s) => s.faults)
   const nodes = useLabStore((s) => s.nodes)
   const wires = useLabStore((s) => s.wires)
-  const style = useLabStore((s) => s.settings.wireStyle)
   const vis = useWireVisibility(v, nm)
   if (!show || !started) return null
   const flows = wireFlows(nodes, wires, v, compute(sim, v, clear, faults), sim.t, faults)
@@ -427,8 +448,8 @@ function FlowLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
         const f = flows[w.id]
         const na = nm[w.a.n]
         const nb = nm[w.b.n]
-        if (!f || !na || !nb || vis[w.id] !== 'show') return null
-        const d = wirePath(terminalPos(na, w.a.t), terminalPos(nb, w.b.t), style)
+        if (!f || !na || !nb || !routes[w.id] || vis[w.id] !== 'show') return null
+        const d = routes[w.id].d
         // Speed grows with current, on a log scale so 0.3 A and 60 A both read well.
         const dur = Math.max(0.35, 2.2 / (1 + Math.log2(1 + f.amps)))
         return (
@@ -502,6 +523,7 @@ const SHORTCUTS: [string, string][] = [
   ['Drag', 'Box select (Shift adds)'],
   ['Space + drag', 'Pan the sheet'],
   ['Del', 'Delete selected'],
+  ['Drag a selected wire', 'Move its middle segment (double-click the handle to reset)'],
   ['X', 'Hide or show all wires'],
 ]
 
@@ -616,8 +638,12 @@ export function Canvas() {
   const showGrid = useLabStore((s) => s.settings.showGrid)
   const nodes = useLabStore((s) => s.nodes)
   const { setViewportEl, viewportDown, dropAt, zoomAt, fit } = useLabStore.getState()
+  const wires = useLabStore((s) => s.wires)
+  const wireStyle = useLabStore((s) => s.settings.wireStyle)
   const v = useValidation()
   const nm = nodeMap(nodes)
+  // One routing pass shared by the wires and the flow dots (automatic lanes keep parallel runs apart).
+  const routes = useMemo(() => wireRoutes(wires, nodeMap(nodes), wireStyle), [wires, nodes, wireStyle])
 
   const onWheel = useCallback(
     (e: WheelEvent) => {
@@ -668,8 +694,8 @@ export function Canvas() {
       }}
     >
       <div className="absolute top-0 left-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${z})` }}>
-        <WireLayer v={v} nm={nm} />
-        <FlowLayer v={v} nm={nm} />
+        <WireLayer v={v} nm={nm} routes={routes} />
+        <FlowLayer v={v} nm={nm} routes={routes} />
         <Nodes v={v} nm={nm} />
         <MarqueeLayer />
         <TerminalPicker nm={nm} />

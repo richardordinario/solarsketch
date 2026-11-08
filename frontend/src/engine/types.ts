@@ -137,6 +137,8 @@ export interface Wire {
   gauge: string
   /** One-way cable run in metres; DEFAULT_WIRE_LENGTH when absent. */
   length?: number
+  /** 2D sheet only: manual offset of the route's middle segment (see geometry `wireRoutes`); absent = automatic. */
+  bend?: number
 }
 
 export type Severity = 'critical' | 'warning' | 'info'
