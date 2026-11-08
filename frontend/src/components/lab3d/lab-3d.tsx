@@ -4,19 +4,21 @@
  */
 import { ContactShadows, Edges, OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { InfoIcon } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 
 import { CATALOG, LOAD_TYPES, isBattery, isPv } from '@/engine/catalog'
 import { nodeTitle } from '@/engine/profiles'
 import { terminal } from '@/engine/geometry'
 import { wireFlows, type WireFlow } from '@/engine/flows'
-import { BENCH_H, PV_TILT, cablePoints, layout3d, routeCable, sunDirection, terminalPos3d, type Environment3D, type Layout3D, type Placement, type Vec3 } from '@/engine/layout3d'
+import { BENCH_H, HOUSE_FRONT_Z, PV_TILT, cablePoints, layout3d, routeCable, sunDirection, terminalPos3d, type Environment3D, type Layout3D, type Placement, type Vec3 } from '@/engine/layout3d'
 import { compute, isDaylight, type Measurements } from '@/engine/simulation'
 import type { LabNode, TerminalType, Wire } from '@/engine/types'
 import { nodeMap, type ValidationResult } from '@/engine/validation'
 import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useLabStore, useValidation } from '@/store/lab-store'
 import { WireFilterNotice } from '@/components/lab/wire-filter-notice'
 import { useWireVisibility } from '@/hooks/use-wire-visibility'
@@ -42,7 +44,8 @@ function usePalette() {
       term,
       primary: cssVar('var(--primary)'),
       floor: theme === 'dark' ? '#454a52' : '#e4e1df',
-      wall: theme === 'dark' ? '#68707a' : '#efedeb',
+      // Blue-grey, a different hue from the grey/white equipment bodies so components stand out against it.
+      wall: theme === 'dark' ? '#2e4657' : '#a9bccb',
       bench: theme === 'dark' ? '#6c727b' : '#c9c4c0',
       body: theme === 'dark' ? '#6a7079' : '#f4f2f0',
       bodyDark: theme === 'dark' ? '#3a3e44' : '#2b2e33',
@@ -491,10 +494,10 @@ function Room({ env, bounds, pal, day }: { env: Environment3D; bounds: [number, 
           <planeGeometry args={[w + 20, d + 20]} />
           <meshStandardMaterial color={pal.dark ? '#3f5a44' : '#9fbf8a'} />
         </mesh>
-        {/* House under the array */}
-        <mesh position={[0, 1.6, -2.4]} castShadow receiveShadow>
+        {/* House under the array; its front face is HOUSE_FRONT_Z, where layout3d lines up the equipment. */}
+        <mesh position={[0, 1.6, HOUSE_FRONT_Z - 2.2]} castShadow receiveShadow>
           <boxGeometry args={[Math.max(6, w - 4), 3.2, 4.4]} />
-          <meshStandardMaterial color={pal.wall} />
+          <meshStandardMaterial color={pal.wall} roughness={0.95} />
         </mesh>
         <mesh position={[0, 3.2 + 0.55, -2.25]} rotation={[PV_TILT, 0, 0]} castShadow receiveShadow>
           <boxGeometry args={[Math.max(6.6, w - 3.4), 0.08, 4.9]} />
@@ -518,11 +521,11 @@ function Room({ env, bounds, pal, day }: { env: Environment3D; bounds: [number, 
       <gridHelper args={[Math.max(w, d), Math.round(Math.max(w, d)), pal.dark ? '#5d636c' : '#cfcac6', pal.dark ? '#50565e' : '#dcd8d5']} position={[cx, 0.002, cz]} />
       <mesh position={[cx, 1.6, cz - d / 2]} receiveShadow>
         <planeGeometry args={[w, 3.2]} />
-        <meshStandardMaterial color={pal.wall} />
+        <meshStandardMaterial color={pal.wall} roughness={0.95} />
       </mesh>
       <mesh position={[cx - w / 2, 1.6, cz]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[d, 3.2]} />
-        <meshStandardMaterial color={pal.wall} />
+        <meshStandardMaterial color={pal.wall} roughness={0.95} />
       </mesh>
       <pointLight position={[cx, 3, cz]} intensity={day ? 2 : 8} distance={14} color="#fff4e0" />
     </group>
@@ -590,6 +593,47 @@ const WALK_KEYS: Record<string, [number, number, number]> = {
 const WALK_SPEED = 3 // metres per second; Shift runs at 2.5×
 const EYE_MIN = 0.3 // keep the camera above the floor
 const EYE_MAX = 40
+
+/** 3D controls, shown on hover or focus of the info button in the corner. */
+const CONTROLS: [string, string][] = [
+  ['WASD / Arrows', 'Walk'],
+  ['Q / E', 'Move down / up'],
+  ['Shift', 'Run'],
+  ['Drag', 'Orbit'],
+  ['Right-drag', 'Pan'],
+  ['Scroll', 'Zoom'],
+  ['Click', 'Inspect a component or cable'],
+]
+
+function ControlsHelp() {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label={t('3D controls')}
+            className="absolute bottom-2 left-2 flex size-7 cursor-help items-center justify-center edge bg-background p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+          />
+        }
+      >
+        <InfoIcon className="size-4" />
+      </TooltipTrigger>
+      <TooltipContent side="top" align="start" className="block max-w-72 rounded-none px-3 py-2 text-[11px]">
+        <div className="mb-1 font-strong">{t('3D controls')}</div>
+        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          {CONTROLS.map(([k, d]) => (
+            <Fragment key={k}>
+              <dt className="font-semibold whitespace-nowrap">{t(k)}</dt>
+              <dd className="m-0">{t(d)}</dd>
+            </Fragment>
+          ))}
+        </dl>
+        <div className="mt-1.5 opacity-80">{t('Wiring is edited in the 2D sheet.')}</div>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 /** WASD / arrow keys walk the camera across the floor, Q/E lower and raise it; the orbit target moves with it. */
 function WalkControls() {
@@ -959,9 +1003,7 @@ export default function Lab3D() {
         ))}
       </div>
       <WireFilterNotice v={v} nm={nodeMap(nodes)} className="top-10 bottom-auto" />
-      <div className="pointer-events-none absolute bottom-2 left-2 edge bg-background px-2 py-1 text-[11px] text-muted-foreground">
-        {t('WASD or arrow keys to walk, Q/E down/up (Shift to run) · drag to orbit · right-drag to pan · scroll to zoom · click a component or cable to inspect · wiring is edited in 2D')}
-      </div>
+      <ControlsHelp />
     </div>
   )
 }

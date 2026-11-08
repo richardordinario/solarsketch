@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { CATALOG } from './catalog'
+import { CATALOG, LOAD_TYPES, isPv } from './catalog'
 import { COMPONENT_IMAGES } from './component-images'
 import { DEVICE_IMAGES } from './device-images'
-import { layout3d, sunDirection, terminalPos3d } from './layout3d'
+import { HOUSE_FRONT_Z, layout3d, sunDirection, terminalPos3d, type Placement } from './layout3d'
 import { PROFILES, deviceProfiles, makeDeviceNode, matchesProfile, nodeTitle, profileById, profileSpecs } from './profiles'
 import { hybridProject, sampleProject } from './sample-project'
 import { compute, freshSim } from './simulation'
@@ -27,6 +27,32 @@ describe('3D layout', () => {
     const l = layout3d(nodes, 'rooftop')
     expect(l.placements['pv1'].position[1]).toBeGreaterThan(3)
     expect(l.placements['bat1'].position[1]).toBeLessThan(1)
+  })
+
+  it('sets every rooftop component out in front of the house, loads grouped to the right', () => {
+    const { nodes } = sampleProject()
+    const l = layout3d(nodes, 'rooftop')
+    const ground = nodes.filter((n) => !isPv(n)).map((n) => ({ n, p: l.placements[n.id] }))
+    // Nothing (apart from the array on the roof) is inside the house.
+    for (const { p } of ground) expect(p.position[2] - p.size[2] / 2).toBeGreaterThanOrEqual(HOUSE_FRONT_Z)
+    const isLoad = (t: string) => (LOAD_TYPES as readonly string[]).includes(t) || t === 'outlet'
+    const loads = ground.filter(({ n }) => isLoad(n.type))
+    const equipment = ground.filter(({ n }) => !isLoad(n.type))
+    expect(loads.length).toBeGreaterThan(0)
+    const right = (x: { p: Placement }) => x.p.position[0] + x.p.size[0] / 2
+    const left = (x: { p: Placement }) => x.p.position[0] - x.p.size[0] / 2
+    expect(Math.min(...loads.map(left))).toBeGreaterThan(Math.max(...equipment.map(right)))
+    // Rows face the viewer, and no two components in the same row overlap.
+    for (const { p } of ground) expect(p.rotY).toBe(0)
+    const rows = new Map<string, typeof ground>()
+    for (const g of ground) {
+      const k = (g.p.position[2] - g.p.size[2] / 2).toFixed(3)
+      rows.set(k, (rows.get(k) ?? []).concat([g]))
+    }
+    for (const row of rows.values()) {
+      const sorted = row.slice().sort((a, b) => a.p.position[0] - b.p.position[0])
+      for (let i = 1; i < sorted.length; i++) expect(left(sorted[i])).toBeGreaterThanOrEqual(right(sorted[i - 1]))
+    }
   })
 
   it('moves the sun from east to west and below the horizon at night', () => {

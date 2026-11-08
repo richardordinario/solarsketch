@@ -2,7 +2,7 @@
  * Pure 3D placement for the Virtual Lab. Maps the 2D sheet into metres so the 3D view is a
  * spatial view of the same project; it contains no electrical behaviour (PRD §3.4).
  */
-import { CATALOG, isPv } from './catalog'
+import { CATALOG, LOAD_TYPES, isPv } from './catalog'
 import { terminal } from './geometry'
 import type { ComponentType, LabNode } from './types'
 
@@ -137,9 +137,10 @@ export function layout3d(nodes: LabNode[], env: Environment3D): Layout3D {
     else if (n.type === 'acs') y = 2.2
     else if (n.type === 'acw') y = 1.3
     else y = bench ? BENCH_H + size[1] / 2 : size[1] / 2
-    if (env === 'rooftop' && !isPv(n)) z += 2.4
     placements[n.id] = { id: n.id, type: n.type, position: [x, y, z], rotY: -((n.rot ?? 0) * Math.PI) / 180, size, bench }
   }
+
+  if (env === 'rooftop') placeRooftopEquipment(nodes, placements)
 
   const all = Object.values(placements)
   const xs = all.map((p) => p.position[0])
@@ -149,6 +150,54 @@ export function layout3d(nodes: LabNode[], env: Environment3D): Layout3D {
   const ground = all.filter((p) => !isPv(p) && p.type !== 'led')
   const trayZ = (ground.length ? Math.max(...ground.map((p) => p.position[2] + p.size[2] / 2)) : 0) + 0.7
   return { placements, bounds, center, env, trayY: 0.05, trayZ, ceilingY: 2.85, wallZ: env === 'rooftop' ? -0.1 : null }
+}
+
+/** Rooftop house front face (the house box in lab-3d.tsx `Room`: centre z −2.4, depth 4.4). */
+export const HOUSE_FRONT_Z = -0.2
+/** Loads mounted on the house wall in the rooftop scene; every other load stands on the ground. */
+const WALL_LOADS: ComponentType[] = ['tv', 'acs', 'acw', 'led', 'outlet']
+const WALL_LOAD_Y: Partial<Record<ComponentType, number>> = { led: 2.3, acs: 2.2, acw: 1.3, tv: 1.4, outlet: 0.4 }
+/** Centre height of wall-mounted equipment (controllers, inverters, boards, protection). */
+const WALL_MOUNT_Y = 1.4
+const ROW_GAP = 0.3
+/** The ground row stands this far in front of the wall, clear of the wall row's cable drops. */
+const GROUND_ROW_Z = HOUSE_FRONT_Z + 0.9
+/** Space between the equipment area and the loads area. */
+const AREA_GAP = 1.2
+
+/**
+ * Rooftop scene: everything except the PV array is set out in front of the house, never inside it,
+ * in straight rows facing the viewer. Equipment comes first (wall-mounted gear on the wall, batteries,
+ * generator, grid and ground rod on the ground in front), and all loads are grouped to the right.
+ * Rows keep the 2D left-to-right order, and the whole set is centred under the array.
+ */
+function placeRooftopEquipment(nodes: LabNode[], placements: Record<string, Placement>) {
+  const byX = nodes.filter((n) => !isPv(n)).sort((a, b) => a.x - b.x || a.y - b.y)
+  const isLoad = (n: LabNode) => LOAD_TYPES.includes(n.type) || n.type === 'outlet'
+  const areas = [byX.filter((n) => !isLoad(n)), byX.filter(isLoad)]
+  let start = 0
+  let end = 0
+  for (const area of areas) {
+    if (!area.length) continue
+    const wall = area.filter((n) => (isLoad(n) ? WALL_LOADS.includes(n.type) : ON_BENCH.includes(n.type)))
+    const ground = area.filter((n) => !wall.includes(n))
+    let width = 0
+    for (const [row, onWall] of [[wall, true], [ground, false]] as const) {
+      let x = start
+      for (const n of row) {
+        const size = SIZE[n.type]
+        const y = onWall ? (WALL_LOAD_Y[n.type] ?? WALL_MOUNT_Y) : n.type === 'gnd' ? size[1] / 2 - 0.9 : size[1] / 2
+        const z = onWall ? HOUSE_FRONT_Z + size[2] / 2 + 0.02 : GROUND_ROW_Z + size[2] / 2
+        placements[n.id] = { ...placements[n.id], position: [x + size[0] / 2, y, z], rotY: 0, bench: false }
+        x += size[0] + ROW_GAP
+      }
+      width = Math.max(width, x - ROW_GAP - start)
+    }
+    end = start + width
+    start = end + AREA_GAP
+  }
+  const shift = -end / 2
+  for (const n of byX) placements[n.id].position[0] += shift
 }
 
 /**
