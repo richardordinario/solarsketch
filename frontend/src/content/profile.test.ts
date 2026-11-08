@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { TEMPLATES } from '@/engine/sample-project'
 
 import { LESSONS } from './lessons'
-import { recommend } from './profile'
+import { initials, recommend } from './profile'
 
 describe('onboarding recommendation', () => {
   it('starts each expertise level at an existing lesson, or the challenges', () => {
@@ -26,5 +26,15 @@ describe('onboarding recommendation', () => {
       const id = recommend({ expertise: 'beginner', goals: [g] }).templateId
       expect(TEMPLATES.some((x) => x.id === id)).toBe(true)
     }
+  })
+})
+
+describe('profile initials', () => {
+  it('uses the first and last word, uppercased', () => {
+    expect(initials('Juan dela Cruz')).toBe('JC')
+    expect(initials('  ana  ')).toBe('A')
+    expect(initials('ñino reyes')).toBe('ÑR')
+    expect(initials('')).toBe('')
+    expect(initials('   ')).toBe('')
   })
 })

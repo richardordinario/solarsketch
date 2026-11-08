@@ -1,9 +1,13 @@
+import { UserIcon } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
 import { href, useRoute, type Route } from '@/lib/router'
 import { useLabStore } from '@/store/lab-store'
+import { initials } from '@/content/profile'
+import { useProfileStore } from '@/store/profile-store'
 
 import { SunMark } from '@/components/app/sun-mark'
 import { MoonIcon, SaveIcon, SettingsIcon, SunIcon } from './icons'
@@ -49,6 +53,29 @@ export function SaveButton() {
         <SaveIcon />
       </TooltipTrigger>
       <TooltipContent side="bottom">{t('Save (Ctrl+S)')}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/** The user's initials (from Settings → Name), or a person icon when no name is set. Opens Settings. */
+function ProfileBadge() {
+  const name = useProfileStore((s) => s.profile?.name ?? '')
+  const ini = initials(name)
+  const label = name.trim() ? t('Hi, {name}', { name: name.trim() }) : t('Your profile')
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <a
+            href={href({ page: 'settings' })}
+            aria-label={label}
+            className="flex size-[30px] items-center justify-center bg-secondary text-xs font-strong text-secondary-foreground no-underline hover:text-secondary-foreground"
+          />
+        }
+      >
+        {ini || <UserIcon className="size-4" aria-hidden />}
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
     </Tooltip>
   )
 }
@@ -99,7 +126,7 @@ export function TopBar() {
           </TooltipTrigger>
           <TooltipContent side="bottom">{t('Settings')}</TooltipContent>
         </Tooltip>
-        <div className="flex size-[30px] items-center justify-center bg-secondary text-xs font-strong text-secondary-foreground">JR</div>
+        <ProfileBadge />
       </div>
     </header>
   )

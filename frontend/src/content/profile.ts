@@ -51,3 +51,11 @@ export function recommend(p: Pick<Profile, 'expertise' | 'goals'>): Recommendati
   const templateId = p.goals.map((g) => GOAL_TEMPLATE[g]).find((x) => x) ?? null
   return { lessonId, templateId }
 }
+
+/** Up to two initials from the name in Settings: "Juan dela Cruz" -> "JC", "Ana" -> "A", "" -> "". */
+export function initials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return ''
+  const first = (w: string) => Array.from(w)[0].toLocaleUpperCase()
+  return words.length === 1 ? first(words[0]) : first(words[0]) + first(words[words.length - 1])
+}
