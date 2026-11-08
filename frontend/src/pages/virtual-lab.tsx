@@ -4,6 +4,7 @@ import { Canvas } from '@/components/lab/canvas'
 
 // Three.js is large: load the 3D lab only when it is opened.
 const Lab3D = lazy(() => import('@/components/lab3d/lab-3d'))
+import { ConfirmDialog } from '@/components/lab/confirm-dialog'
 import { ConsolePanel } from '@/components/lab/console-panel'
 import { InspectorPanel } from '@/components/lab/inspector-panel'
 import { LabHeader } from '@/components/lab/lab-header'
@@ -73,6 +74,7 @@ export function VirtualLabPage() {
         </DrawerSlot>
       </div>
       <StatusBar />
+      <ConfirmDialog />
     </div>
   )
 }

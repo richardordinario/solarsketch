@@ -6,6 +6,7 @@ import { nodeTitle } from '@/engine/profiles'
 import { FAULT_DEFS, FAULT_KINDS, describeFault, isActive, type FaultKind } from '@/engine/faults'
 import { clockStr } from '@/engine/simulation'
 import { cn } from '@/lib/utils'
+import { askConfirm } from '@/store/confirm-store'
 import { useLabStore } from '@/store/lab-store'
 
 import { SectionLabel } from './shared'
@@ -117,7 +118,7 @@ export function FaultsPanel() {
                   {t('Fix:')} {FAULT_DEFS[f.kind].repair}
                 </div>
               </div>
-              <Button variant="ghost" className={cn(btnGhost, 'h-6 px-2 text-[12px]')} onClick={() => removeFault(f.id)}>
+              <Button variant="ghost" className={cn(btnGhost, 'h-6 px-2 text-[12px]')} onClick={() => askConfirm({ title: t('Remove this fault?'), message: describeFault(f, node), action: t('Remove'), onConfirm: () => removeFault(f.id) })}>
                 {t('Remove')}
               </Button>
             </div>

@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import { create } from 'zustand'
 
+import { DEFAULT_WIRE_FILTER, type WireFilter } from '@/engine/wire-filter'
 import { CATALOG_VERSION, RULESET_VERSION, SPEEDS, makeNode, uid } from '@/engine/catalog'
 import { keepCentre, nextRotation, nodeSize, terminal, terminalName, terminalPos } from '@/engine/geometry'
 import { clockStr, freshSim, step, type LogEntry, type SimState } from '@/engine/simulation'
@@ -85,6 +86,8 @@ interface LabState {
   /** Task steps drawer, shown only while a practice or challenge is open. */
   stepsOpen: boolean
   legendOpen: boolean
+  /** Which wires the 2D sheet draws (display only, not saved). */
+  wireFilter: WireFilter
   sim: SimState
   running: boolean
   /** Stop was pressed: the run is over but its readings stay until Reset or the next Start. */
@@ -112,6 +115,7 @@ interface LabActions {
   toggleInspector: () => void
   toggleSteps: () => void
   toggleLegend: () => void
+  setWireFilter: (patch: Partial<WireFilter>) => void
   setClear: (v: number) => void
   setSpeed: (i: number) => void
   setViewMode: (mode: '2d' | '3d') => void
@@ -319,6 +323,7 @@ export const useLabStore = create<LabState & LabActions>()((set, get) => {
     inspectorOpen: initialSettings.inspectorOpen,
     stepsOpen: initialSettings.stepsOpen,
     legendOpen: false,
+    wireFilter: DEFAULT_WIRE_FILTER,
     sim: freshSim(),
     running: false,
     stopped: false,
@@ -368,6 +373,7 @@ export const useLabStore = create<LabState & LabActions>()((set, get) => {
       saveDrawers(patch)
     },
     toggleLegend: () => set((s) => ({ legendOpen: !s.legendOpen })),
+    setWireFilter: (patch) => set((s) => ({ wireFilter: { ...s.wireFilter, ...patch } })),
     setClear: (clear) => set({ clear, saved: false }),
     setSpeed: (speed) => set({ speed, saved: false }),
     setViewMode: (viewMode) => set({ viewMode, pending: null, termPicker: null, tool: 'select' }),

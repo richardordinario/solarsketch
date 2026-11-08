@@ -10,6 +10,7 @@ import * as THREE from 'three'
 import { CATALOG, LOAD_TYPES, isBattery, isPv } from '@/engine/catalog'
 import { nodeTitle } from '@/engine/profiles'
 import { terminal } from '@/engine/geometry'
+import { wireFlows, type WireFlow } from '@/engine/flows'
 import { BENCH_H, PV_TILT, cablePoints, layout3d, routeCable, sunDirection, terminalPos3d, type Environment3D, type Layout3D, type Placement, type Vec3 } from '@/engine/layout3d'
 import { compute, isDaylight, type Measurements } from '@/engine/simulation'
 import type { LabNode, TerminalType, Wire } from '@/engine/types'
@@ -17,6 +18,8 @@ import { nodeMap, type ValidationResult } from '@/engine/validation'
 import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
 import { useLabStore, useValidation } from '@/store/lab-store'
+import { WireFilterNotice } from '@/components/lab/wire-filter-notice'
+import { useWireVisibility } from '@/hooks/use-wire-visibility'
 
 import { TERMINAL_COLOR, WIRE_COLOR } from '../lab/colors'
 import { hasWebGL } from './webgl'
@@ -395,20 +398,73 @@ function roundedPath(points: Vec3[], radius = 0.06) {
   return path
 }
 
-function Cable({ wire, points, routed, color, gy, fault, selected, onSelect }: { wire: Wire; points: Vec3[]; routed: boolean; color: string; gy: boolean; fault: boolean; selected: boolean; onSelect: (e: ThreeEvent<MouseEvent>) => void }) {
+const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+const TRACE_PULSES = 6
+
+/**
+ * Route tracer for the selected cable: glowing pulses travel along it and both ends beacon, so
+ * the eye can follow where it goes. Pulses run end a → b, or with the current while the
+ * simulation has it flowing (speed grows with amps, like the 2D flow dots). Display only.
+ * Under reduced motion the pulses stand still along the cable.
+ */
+function CableTrace({ curve, radius, color, flow }: { curve: THREE.Curve<THREE.Vector3>; radius: number; color: string; flow: WireFlow | null }) {
+  const pulses = useRef<(THREE.Mesh | null)[]>([])
+  const beacons = useRef<(THREE.Mesh | null)[]>([])
+  const reduced = useMemo(() => reducedMotion(), [])
+  const len = useMemo(() => curve.getLength(), [curve])
+  const ends = useMemo(() => [curve.getPointAt(0), curve.getPointAt(1)], [curve])
+  const place = (u0: number) => {
+    pulses.current.forEach((m, i) => {
+      if (!m) return
+      let u = (u0 + i / TRACE_PULSES) % 1
+      if (flow?.dir === -1) u = 1 - u
+      m.position.copy(curve.getPointAt(u))
+    })
+  }
+  useEffect(() => place(0))
+  useFrame(({ clock }) => {
+    if (reduced) return
+    const speed = flow ? 0.25 * (1 + Math.log2(1 + flow.amps)) : 0.5 // m/s along the cable
+    place(((clock.elapsedTime * speed) / Math.max(len, 0.01)) % 1)
+    const s = 1 + 0.35 * Math.sin(clock.elapsedTime * 4)
+    beacons.current.forEach((m) => m?.scale.setScalar(s))
+  })
+  const pr = Math.max(radius * 2.2, 0.018)
+  return (
+    <group>
+      {Array.from({ length: TRACE_PULSES }, (_, i) => (
+        <mesh key={i} ref={(m) => void (pulses.current[i] = m)} raycast={() => null}>
+          <sphereGeometry args={[pr, 12, 8]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      ))}
+      {ends.map((p, i) => (
+        <mesh key={'e' + i} position={p} ref={(m) => void (beacons.current[i] = m)} raycast={() => null}>
+          <sphereGeometry args={[0.05, 16, 12]} />
+          <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** `dim`: faded context cable under the wire filter, not clickable. `flow`: the selected cable's current, for the trace. */
+function Cable({ wire, points, routed, color, gy, fault, selected, dim, flow, onSelect }: { wire: Wire; points: Vec3[]; routed: boolean; color: string; gy: boolean; fault: boolean; selected: boolean; dim: boolean; flow: WireFlow | null; onSelect: (e: ThreeEvent<MouseEvent>) => void }) {
   const mat = useRef<THREE.MeshStandardMaterial>(null)
-  const geom = useMemo(() => {
-    const curve = routed ? roundedPath(points) : new THREE.CatmullRomCurve3(points.map((v) => new THREE.Vector3(...v)))
-    const r = 0.006 + Math.sqrt(parseFloat(wire.gauge)) * 0.0016
-    return new THREE.TubeGeometry(curve, routed ? Math.max(64, points.length * 24) : 48, selected ? r * 1.6 : r, 8, false)
-  }, [points, routed, wire.gauge, selected])
+  const curve = useMemo(() => (routed ? roundedPath(points) : new THREE.CatmullRomCurve3(points.map((v) => new THREE.Vector3(...v)))), [points, routed])
+  const r = 0.006 + Math.sqrt(parseFloat(wire.gauge)) * 0.0016
+  const geom = useMemo(() => new THREE.TubeGeometry(curve, routed ? Math.max(64, points.length * 24) : 48, selected ? r * 1.6 : r, 8, false), [curve, routed, points.length, r, selected])
   useFrame(({ clock }) => {
     if (mat.current && fault) mat.current.emissiveIntensity = 0.4 + 0.4 * Math.sin(clock.elapsedTime * 5)
   })
   return (
+    <>
+    {selected && <CableTrace curve={curve} radius={r} color={gy ? '#f2d43a' : color} flow={flow} />}
     <mesh
       geometry={geom}
-      castShadow
+      castShadow={!dim}
+      raycast={dim ? () => null : undefined}
       onClick={onSelect}
       onPointerOver={(e) => {
         e.stopPropagation()
@@ -416,8 +472,9 @@ function Cable({ wire, points, routed, color, gy, fault, selected, onSelect }: {
       }}
       onPointerOut={() => (document.body.style.cursor = '')}
     >
-      <meshStandardMaterial ref={mat} color={gy ? '#3fae4c' : color} roughness={0.6} emissive={fault ? '#ff2a00' : selected ? color : '#000000'} emissiveIntensity={fault ? 0.6 : selected ? 0.5 : 0} />
+      <meshStandardMaterial ref={mat} color={gy ? '#3fae4c' : color} roughness={0.6} emissive={fault ? '#ff2a00' : selected ? color : '#000000'} emissiveIntensity={fault ? 0.6 : selected ? 0.5 : 0} transparent={dim} opacity={dim ? 0.15 : 1} depthWrite={!dim} />
     </mesh>
+    </>
   )
 }
 
@@ -632,9 +689,11 @@ interface SceneProps {
   setHoverId: (id: string | null) => void
   anchors: Label[]
   labelEls: React.RefObject<Map<string, HTMLDivElement>>
+  /** Current in the selected wire while the simulation runs, for its trace. */
+  selFlow: WireFlow | null
 }
 
-function Scene({ nodes, wires, v, env, layout, hoverId, setHoverId, anchors, labelEls, routed }: SceneProps) {
+function Scene({ nodes, wires, v, env, layout, hoverId, setHoverId, anchors, labelEls, routed, selFlow }: SceneProps) {
   const pal = usePalette()
   const sel = useLabStore((s) => s.sel)
   const select = useLabStore((s) => s.select)
@@ -645,6 +704,7 @@ function Scene({ nodes, wires, v, env, layout, hoverId, setHoverId, anchors, lab
   void style
 
   const nm = useMemo(() => nodeMap(nodes), [nodes])
+  const vis = useWireVisibility(v, nm)
   const live = sim.started ? compute(sim, v, clear, faults) : null
   const hour = (sim.t / 60) % 24
   const day = isDaylight(sim.t)
@@ -706,7 +766,7 @@ function Scene({ nodes, wires, v, env, layout, hoverId, setHoverId, anchors, lab
       {wires.map((w, i) => {
         const na = nm[w.a.n]
         const nb = nm[w.b.n]
-        if (!na || !nb) return null
+        if (!na || !nb || vis[w.id] === 'hide') return null
         const a = terminalPos3d(na, w.a.t, layout.placements[na.id])
         const b = terminalPos3d(nb, w.b.t, layout.placements[nb.id])
         const ta = terminal(na, w.a.t)!.t
@@ -724,6 +784,8 @@ function Scene({ nodes, wires, v, env, layout, hoverId, setHoverId, anchors, lab
             gy={raw === 'gy'}
             fault={!!v.wres[w.id]?.fail && v.wres[w.id].fail!.sev === 'critical'}
             selected={sel.wire === w.id}
+            dim={vis[w.id] === 'dim'}
+            flow={sel.wire === w.id ? selFlow : null}
             onSelect={pick({ nodes: [], wire: w.id })}
           />
         )
@@ -795,6 +857,32 @@ export default function Lab3D() {
     }
   }
 
+  // Selected cable: label both ends (From → To, following the current when it flows).
+  const selWire = sel.wire ? wires.find((w) => w.id === sel.wire) : undefined
+  const selFlow = selWire && live ? (wireFlows(nodes, wires, v, live, sim.t, faults)[selWire.id] ?? null) : null
+  if (selWire) {
+    const ends = selFlow?.dir === -1 ? [selWire.b, selWire.a] : [selWire.a, selWire.b]
+    ends.forEach((end, i) => {
+      const n = nodes.find((x) => x.id === end.n)
+      const p = n && layout.placements[n.id]
+      const term = n && terminal(n, end.t)
+      if (!n || !p || !term) return
+      const at = terminalPos3d(n, end.t, p)
+      labels.push({
+        key: `wire-end:${i}`,
+        at: [at[0], at[1] + 0.09, at[2]],
+        emphasis: true,
+        content: (
+          <>
+            <span className="mr-1 font-strong text-primary">{t(i === 0 ? 'From' : 'To')}</span>
+            {nodeTitle(n, true)} · <span style={{ color: cssVar(TERMINAL_COLOR[term.t]) }}>■</span> {term.label}
+            {i === 0 && selFlow && <span className="ml-1.5 tabular-nums text-muted-foreground">{selFlow.amps.toFixed(2)} A</span>}
+          </>
+        ),
+      })
+    })
+  }
+
   if (!supported)
     return (
       <div className="flex h-full items-center justify-center bg-canvas p-6">
@@ -813,7 +901,7 @@ export default function Lab3D() {
     // min-w-0 + overflow-hidden let the grid track shrink: the WebGL canvas keeps its last pixel size until R3F re-measures.
     <div className="relative h-full min-h-0 min-w-0 overflow-hidden bg-canvas">
       <Canvas shadows dpr={[1, 2]} camera={{ position: framing(layout), fov: 45, near: 0.05, far: 200 }} onPointerMissed={() => clearSelection()} aria-label={t('3D virtual laboratory')}>
-        <Scene routed={cableStyle === 'routed'} nodes={nodes} wires={wires} v={v} env={env} layout={layout} hoverId={hoverId} setHoverId={setHoverId} anchors={labels} labelEls={labelEls} />
+        <Scene routed={cableStyle === 'routed'} nodes={nodes} wires={wires} v={v} env={env} layout={layout} hoverId={hoverId} setHoverId={setHoverId} anchors={labels} labelEls={labelEls} selFlow={selFlow} />
       </Canvas>
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         {labels.map((l) => (
@@ -870,6 +958,7 @@ export default function Lab3D() {
           </button>
         ))}
       </div>
+      <WireFilterNotice v={v} nm={nodeMap(nodes)} className="top-10 bottom-auto" />
       <div className="pointer-events-none absolute bottom-2 left-2 edge bg-background px-2 py-1 text-[11px] text-muted-foreground">
         {t('WASD or arrow keys to walk, Q/E down/up (Shift to run) · drag to orbit · right-drag to pan · scroll to zoom · click a component or cable to inspect · wiring is edited in 2D')}
       </div>

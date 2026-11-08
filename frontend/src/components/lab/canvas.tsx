@@ -13,6 +13,8 @@ import { useLabStore, useValidation, type Tool } from '@/store/lab-store'
 
 import { TERMINAL_COLOR, WIRE_COLOR } from './colors'
 import { DRAG_MIME, parseDragPayload } from './library-panel'
+import { useWireVisibility } from '@/hooks/use-wire-visibility'
+import { WireFilterNotice } from './wire-filter-notice'
 import { SEV_COLOR, SEV_LABEL } from './severity'
 import { SevIcon } from './sev-icon'
 import { t } from '@/i18n'
@@ -342,13 +344,20 @@ function WireLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
   const mouse = useLabStore((s) => (s.pending ? s.mouse : null))
   const style = useLabStore((s) => s.settings.wireStyle)
   const select = useLabStore((s) => s.select)
+  const vis = useWireVisibility(v, nm)
 
   const paths: React.ReactNode[] = []
   const badges: React.ReactNode[] = []
   wires.forEach((w) => {
     const na = nm[w.a.n]
     const nb = nm[w.b.n]
-    if (!na || !nb) return
+    if (!na || !nb || vis[w.id] === 'hide') return
+    if (vis[w.id] === 'dim') {
+      // Faded context wire: visible for orientation, not clickable.
+      const d = wirePath(terminalPos(na, w.a.t), terminalPos(nb, w.b.t), style)
+      paths.push(<path key={w.id} d={d} fill="none" style={{ stroke: 'var(--dim)', opacity: 0.25, pointerEvents: 'none' }} strokeWidth={1.5} strokeLinejoin="round" />)
+      return
+    }
     const a = terminalPos(na, w.a.t)
     const b = terminalPos(nb, w.b.t)
     const d = wirePath(a, b, style)
@@ -409,6 +418,7 @@ function FlowLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
   const nodes = useLabStore((s) => s.nodes)
   const wires = useLabStore((s) => s.wires)
   const style = useLabStore((s) => s.settings.wireStyle)
+  const vis = useWireVisibility(v, nm)
   if (!show || !started) return null
   const flows = wireFlows(nodes, wires, v, compute(sim, v, clear, faults), sim.t, faults)
   return (
@@ -417,7 +427,7 @@ function FlowLayer({ v, nm }: { v: ValidationResult; nm: NodeMap }) {
         const f = flows[w.id]
         const na = nm[w.a.n]
         const nb = nm[w.b.n]
-        if (!f || !na || !nb) return null
+        if (!f || !na || !nb || vis[w.id] !== 'show') return null
         const d = wirePath(terminalPos(na, w.a.t), terminalPos(nb, w.b.t), style)
         // Speed grows with current, on a log scale so 0.3 A and 60 A both read well.
         const dur = Math.max(0.35, 2.2 / (1 + Math.log2(1 + f.amps)))
@@ -492,6 +502,7 @@ const SHORTCUTS: [string, string][] = [
   ['Drag', 'Box select (Shift adds)'],
   ['Space + drag', 'Pan the sheet'],
   ['Del', 'Delete selected'],
+  ['X', 'Hide or show all wires'],
 ]
 
 function Legend() {
@@ -670,6 +681,7 @@ export function Canvas() {
       <SheetLabel nodes={nodes} />
       <SkyIndicator />
       <PendingHint />
+      <WireFilterNotice v={v} nm={nm} />
       {empty && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="max-w-[340px] border-2 border-dashed border-subtle px-6 py-5 text-muted-foreground">

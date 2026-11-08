@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { CatalogSection } from '@/components/app/catalog-section'
+import { ComponentMenu } from '@/components/app/component-menu'
 import { Page, PageSection, RowList } from '@/components/app/page'
 import { SEV_COLOR, SEV_LABEL } from '@/components/lab/severity'
 import { SevIcon } from '@/components/lab/sev-icon'
@@ -173,7 +174,9 @@ export function ComponentsPage({ type }: { type?: string }) {
         <PageSection key={g.cat} title={g.cat}>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
             {g.items.map((k) => (
-              <ComponentCard key={k} type={k} highlight={k === target} />
+              <ComponentMenu key={k} type={k} libraryLink={false}>
+                <ComponentCard type={k} highlight={k === target} />
+              </ComponentMenu>
             ))}
           </div>
         </PageSection>
@@ -187,7 +190,9 @@ export function ComponentsPage({ type }: { type?: string }) {
               <div className="mb-2 text-[10px] font-strong tracking-[.08em] text-muted-foreground uppercase">{g.cat}</div>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
                 {g.items.map((p) => (
-                  <DeviceCard key={p.id} p={p} />
+                  <ComponentMenu key={p.id} type={p.type} profile={p} libraryLink={false}>
+                    <DeviceCard p={p} />
+                  </ComponentMenu>
                 ))}
               </div>
             </div>

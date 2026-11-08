@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 
+import { confirmDelete, useConfirmStore } from '@/store/confirm-store'
 import { useLabStore } from '@/store/lab-store'
 
 const TICK_MS = 220
@@ -28,6 +29,8 @@ export function useLabRuntime() {
     const onKey = (e: KeyboardEvent) => {
       const tg = (e.target as HTMLElement).tagName
       if (tg === 'INPUT' || tg === 'SELECT' || tg === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+      // The delete confirmation handles its own keys (Enter, Esc).
+      if (useConfirmStore.getState().req) return
       const a = s()
       const mod = e.ctrlKey || e.metaKey
       const k = e.key.toLowerCase()
@@ -51,7 +54,7 @@ export function useLabRuntime() {
       } else if (mod) return
       else if (k === 'delete' || k === 'backspace') {
         e.preventDefault()
-        a.del()
+        confirmDelete()
       } else if (k === 'escape') {
         if (a.termPicker) a.openTermPicker(null)
         else a.clearSelection()
@@ -74,6 +77,7 @@ export function useLabRuntime() {
       }
       else if (k === 'h') a.setTool('pan')
       else if (k === 'r') a.rotate()
+      else if (k === 'x') a.setWireFilter({ mode: a.wireFilter.mode === 'hidden' ? 'all' : 'hidden' })
       else if (k === 'f') a.fit()
       else if (k === '=' || k === '+') a.zoomAt(1.2)
       else if (k === '-') a.zoomAt(1 / 1.2)

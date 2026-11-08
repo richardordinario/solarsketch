@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 
+import { ComponentMenu } from '@/components/app/component-menu'
 import { Input } from '@/components/ui/input'
 import { taskById } from '@/content/tasks'
 import { CATALOG, CATEGORY_ORDER, makeNode } from '@/engine/catalog'
@@ -103,9 +104,10 @@ export function LibraryPanel() {
               {g.items.map((k) => (
                 <LibraryCard
                   key={k}
+                  type={k}
                   payload={dragPayload(k)}
                   onAdd={() => addAtCenter(k)}
-                  title={t('Drag onto the canvas, or double-click to add')}
+                  title={t('Drag onto the canvas, or double-click to add. Right-click for price, tutorials and more.')}
                   media={componentImage(k) ? <ComponentThumb type={k} className="h-full w-full" /> : <CodeBadge code={CATALOG[k].code} />}
                   name={CATALOG[k].name}
                   sub={PREVIEW_SUB[k]}
@@ -136,9 +138,11 @@ function DeviceList({ groups, onAdd }: { groups: { cat: string; items: { p: Equi
             {g.items.map(({ p, sub }) => (
               <LibraryCard
                 key={p.id}
+                type={p.type}
+                profile={p}
                 payload={dragPayload(p.type, p.id)}
                 onAdd={() => onAdd(p)}
-                title={`${p.brand} ${p.model} · ${CATALOG[p.type].name}\n${t('Drag onto the canvas, or double-click to add')}`}
+                title={`${p.brand} ${p.model} · ${CATALOG[p.type].name}\n${t('Drag onto the canvas, or double-click to add. Right-click for price, tutorials and more.')}`}
                 media={deviceImage(p.id) ? <DeviceThumb profileId={p.id} className="h-full w-full" /> : <CodeBadge code={CATALOG[p.type].code} />}
                 name={p.model}
                 sub={`${p.brand} · ${sub}`}
@@ -159,24 +163,50 @@ const CardGrid = ({ children }: { children: ReactNode }) => <div className="grid
 
 const CodeBadge = ({ code }: { code: string }) => <span className="text-[13px] font-strong tracking-[.04em] text-dim">{code}</span>
 
-/** One draggable library item, laid out as a card: preview on top, name and key ratings below. */
-function LibraryCard({ payload, onAdd, title, media, name, sub }: { payload: string; onAdd: () => void; title: string; media: ReactNode; name: string; sub: string }) {
+/** One draggable library item, laid out as a card: preview on top, name and key ratings below. Right-click opens `ComponentMenu`. */
+function LibraryCard({
+  type,
+  profile,
+  payload,
+  onAdd,
+  title,
+  media,
+  name,
+  sub,
+}: {
+  type: ComponentType
+  profile?: EquipmentProfile
+  payload: string
+  onAdd: () => void
+  title: string
+  media: ReactNode
+  name: string
+  sub: string
+}) {
   return (
-    <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData(DRAG_MIME, payload)
-        e.dataTransfer.effectAllowed = 'copy'
-      }}
-      onDoubleClick={onAdd}
-      title={title}
-      className="flex min-w-0 cursor-grab flex-col edge bg-card hover:bg-muted active:cursor-grabbing"
-    >
-      <div className="flex h-12 items-center justify-center edge-b bg-canvas">{media}</div>
-      <div className="min-w-0 px-2 py-1.5">
-        <div className="line-clamp-2 leading-tight font-semibold wrap-anywhere">{name}</div>
-        <div className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">{sub}</div>
-      </div>
-    </div>
+    <ComponentMenu
+      type={type}
+      profile={profile}
+      sub={sub}
+      onAdd={onAdd}
+      render={
+        <div
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData(DRAG_MIME, payload)
+            e.dataTransfer.effectAllowed = 'copy'
+          }}
+          onDoubleClick={onAdd}
+          title={title}
+          className="flex min-w-0 cursor-grab flex-col edge bg-card hover:bg-muted active:cursor-grabbing"
+        >
+          <div className="flex h-12 items-center justify-center edge-b bg-canvas">{media}</div>
+          <div className="min-w-0 px-2 py-1.5">
+            <div className="line-clamp-2 leading-tight font-semibold wrap-anywhere">{name}</div>
+            <div className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">{sub}</div>
+          </div>
+        </div>
+      }
+    />
   )
 }

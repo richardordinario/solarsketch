@@ -16,6 +16,7 @@ import { PERFORMANCE_FACTOR, clockStr, compute } from '@/engine/simulation'
 import type { LabNode, TermRef, Wire, WireColor } from '@/engine/types'
 import { checkWire, nodeMap, wireLength, type NodeMap, type StageResult, type ValidationResult } from '@/engine/validation'
 import { useCatalogStore } from '@/store/catalog-store'
+import { confirmDelete } from '@/store/confirm-store'
 import { useLabStore, useValidation } from '@/store/lab-store'
 
 import { TERMINAL_COLOR } from './colors'
@@ -210,7 +211,7 @@ function FieldTests({ node, v }: { node: LabNode; v: ValidationResult }) {
 
 function NodeInspector({ node, v, nm }: { node: LabNode; v: ValidationResult; nm: NodeMap }) {
   const wires = useLabStore((s) => s.wires)
-  const { updateSpec, applyProfile, rotate, del } = useLabStore.getState()
+  const { updateSpec, applyProfile, rotate } = useLabStore.getState()
   const c = CATALOG[node.type]
   // Re-render when imported catalogs change.
   useCatalogStore((st) => st.catalogs)
@@ -336,7 +337,7 @@ function NodeInspector({ node, v, nm }: { node: LabNode; v: ValidationResult; nm
         <Button variant="outline" onClick={rotate} className={OUTLINE_BTN}>
           {t('Rotate 90°')}
         </Button>
-        <Button variant="outline" onClick={del} className={OUTLINE_BTN}>
+        <Button variant="outline" onClick={confirmDelete} className={OUTLINE_BTN}>
           {t('Delete')}
         </Button>
       </div>
@@ -362,7 +363,7 @@ function InspectorSelect<T extends string>({ value, items, onChange, className }
 }
 
 function WireInspector({ wire, v, nm }: { wire: Wire; v: ValidationResult; nm: NodeMap }) {
-  const { updateWire, del } = useLabStore.getState()
+  const { updateWire } = useLabStore.getState()
   const r = v.wres[wire.id] ?? checkWire(wire, nm)
   if (!r) return null
   const ta = terminal(nm[wire.a.n], wire.a.t)!
@@ -452,7 +453,7 @@ function WireInspector({ wire, v, nm }: { wire: Wire; v: ValidationResult; nm: N
         </div>
       )}
       <div className="px-3 pt-3 pb-4">
-        <Button onClick={del} className={`${OUTLINE_BTN} w-full border-destructive bg-destructive text-white hover:bg-destructive/85 dark:bg-destructive dark:text-background dark:hover:bg-destructive/85`}>
+        <Button onClick={confirmDelete} className={`${OUTLINE_BTN} w-full border-destructive bg-destructive text-white hover:bg-destructive/85 dark:bg-destructive dark:text-background dark:hover:bg-destructive/85`}>
           {t('Delete wire')}
         </Button>
       </div>

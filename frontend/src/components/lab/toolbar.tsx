@@ -1,11 +1,13 @@
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SPEEDS } from '@/engine/catalog'
+import { DEFAULT_WIRE_FILTER, isFilterActive, type WireViewMode } from '@/engine/wire-filter'
 import { exportDiagram, exportProjectFile, exportReport } from '@/export/actions'
 import { cn } from '@/lib/utils'
+import { confirmDelete } from '@/store/confirm-store'
 import { SIM_STEPS, useLabStore, useValidation } from '@/store/lab-store'
 
 import { DeleteIcon, DuplicateIcon, FitIcon, PanIcon, PauseIcon, PlayIcon, RedoIcon, ResetIcon, RotateIcon, SelectIcon, StopIcon, UndoIcon, WireIcon, ZoomInIcon, ZoomOutIcon } from './icons'
@@ -58,7 +60,7 @@ export function Toolbar() {
       <ToolButton label={t('Rotate 90° (R)')} onClick={a.rotate}>
         <RotateIcon />
       </ToolButton>
-      <ToolButton label={t('Delete (Del)')} onClick={a.del}>
+      <ToolButton label={t('Delete (Del)')} onClick={confirmDelete}>
         <DeleteIcon />
       </ToolButton>
       <ToolDivider />
@@ -72,6 +74,8 @@ export function Toolbar() {
       <ToolButton label={t('Fit to view (F)')} onClick={a.fit}>
         <FitIcon />
       </ToolButton>
+      <ToolDivider />
+      <WiresMenu />
 
       <div className="min-w-0 flex-1 basis-0" />
 
@@ -209,5 +213,71 @@ export function Toolbar() {
         ))}
       </ToggleGroup>
     </div>
+  )
+}
+
+const WIRE_MODES: [WireViewMode, string][] = [
+  ['all', 'All wires'],
+  ['focus', 'Selected components only (fade the rest)'],
+  ['hidden', 'Hide all wires (X)'],
+]
+
+/** Hide, fade or filter wires in the 2D sheet and the 3D lab to troubleshoot busy systems (display only). */
+function WiresMenu() {
+  const filter = useLabStore((s) => s.wireFilter)
+  const setWireFilter = useLabStore((s) => s.setWireFilter)
+  const active = isFilterActive(filter)
+  const item = 'text-[13px]'
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            title={t('Show or hide wires')}
+            className={cn(
+              'h-[30px] gap-1.5 border-(length:--bw) border-border bg-transparent px-3 text-[13px] font-semibold hover:bg-muted active:translate-y-0 dark:bg-transparent dark:hover:bg-muted',
+              active && 'bg-secondary text-secondary-foreground dark:bg-secondary',
+            )}
+          />
+        }
+      >
+        {t('Wires')}
+        {active && <span aria-label={t('Filter on')} className="size-1.5 bg-primary" />}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-64 rounded-none ring-border">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[11px]">{t('Show')}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={filter.mode} onValueChange={(mode) => setWireFilter({ mode: mode as WireViewMode })}>
+            {WIRE_MODES.map(([m, label]) => (
+              <DropdownMenuRadioItem key={m} value={m} className={item} closeOnClick>
+                {t(label)}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[11px]">{t('Circuit types')}</DropdownMenuLabel>
+          {(['dc', 'ac', 'pe'] as const).map((d) => (
+            <DropdownMenuCheckboxItem
+              key={d}
+              className={item}
+              checked={filter.domains[d]}
+              onCheckedChange={(on) => setWireFilter({ domains: { ...filter.domains, [d]: on } })}
+            >
+              {t(d === 'dc' ? 'DC wires' : d === 'ac' ? 'AC wires' : 'Ground (PE) wires')}
+            </DropdownMenuCheckboxItem>
+          ))}
+          <DropdownMenuCheckboxItem className={item} checked={filter.problemsOnly} onCheckedChange={(on) => setWireFilter({ problemsOnly: on })}>
+            {t('Only wires with problems')}
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className={item} disabled={!active} onClick={() => setWireFilter(DEFAULT_WIRE_FILTER)}>
+          {t('Reset wire view')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
