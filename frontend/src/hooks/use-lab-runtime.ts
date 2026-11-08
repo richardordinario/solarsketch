@@ -29,6 +29,8 @@ export function useLabRuntime() {
     const onKey = (e: KeyboardEvent) => {
       const tg = (e.target as HTMLElement).tagName
       if (tg === 'INPUT' || tg === 'SELECT' || tg === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+      // Dialogs and menus (e.g. Add component, a right-click menu) own their keys.
+      if ((e.target as HTMLElement).closest?.('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')) return
       // The delete confirmation handles its own keys (Enter, Esc).
       if (useConfirmStore.getState().req) return
       const a = s()

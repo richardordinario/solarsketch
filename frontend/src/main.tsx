@@ -4,7 +4,11 @@ import { createRoot } from 'react-dom/client'
 import './fonts.css'
 import './index.css'
 import App from './App.tsx'
+import { normalizeLocation } from './lib/router'
 import { bootstrap } from './store/persistence'
+
+// `/challenges` → `#/challenges`, so hash links are never appended to a stray path.
+normalizeLocation()
 
 const root = createRoot(document.getElementById('root')!)
 

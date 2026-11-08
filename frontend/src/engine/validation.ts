@@ -184,6 +184,7 @@ function endCurrent(nd: LabNode, tid: string) {
     case 'pebar':
     case 'dcm':
     case 'acm':
+    case 'ctm':
       return 0
     default:
       return s.p / 230
@@ -587,7 +588,16 @@ export function validate(nodes: LabNode[], wires: Wire[]): ValidationResult {
     if (!grids.some((gr) => net(gr.id, 'l') === n) && !hybNodes.some((hy) => net(hy.id, 'l') === n))
       add('warning', 'AC-002', 'The grid-tied inverter is not connected to the utility grid. It will not produce power without a grid (anti-islanding).', 'Connect its AC output to the grid side of the installation.', { node: g.id })
   })
-  if (grids.length && (gtiNodes.length || hybNodes.some((h) => h.specs.exportLimit > 0)) && !meters.some((m) => grids.some((g) => same(K(g.id, 'l'), K(m.id, 'gl')))))
+  // Smart CT meters only limit export on an island with a grid; a zero-export meter there means
+  // the inverters on it never export.
+  const ctms = of(['ctm'])
+  ctms.forEach((c) => {
+    if (!grids.some((g) => net(g.id, 'l') === net(c.id, 'l')))
+      add('warning', 'MTR-001', 'The Smart CT meter is not on a grid connection, so it measures no import or export and its export limit does nothing.', 'Put the CT meter between the grid (or net meter) and the installation: grid side to Grid L / Grid N, house side to House L / House N.', { node: c.id })
+  })
+  const zeroExport = (inv: LabNode) => ctms.some((c) => c.specs.exportLimit <= 0 && net(c.id, 'l') === net(inv.id, inv.type === 'hyb' ? 'gl' : 'l') && grids.some((g) => net(g.id, 'l') === net(c.id, 'l')))
+  const exporters = [...gtiNodes, ...hybNodes.filter((h) => h.specs.exportLimit > 0)].filter((x) => !zeroExport(x))
+  if (grids.length && exporters.length && !meters.some((m) => grids.some((g) => same(K(g.id, 'l'), K(m.id, 'gl')))))
     add('warning', 'NM-001', 'The system can export to the grid, but there is no net meter between the grid and the installation.', 'Install a bidirectional net meter at the grid connection point.', { node: grids[0].id })
 
   // Batteries that are part of no complete bank but sit in an open chain.
@@ -603,7 +613,7 @@ export function validate(nodes: LabNode[], wires: Wire[]): ValidationResult {
   // A standalone RCCB's load side counts as a protected circuit output too; closed breakers,
   // disconnects and energy meters are walked through.
   const boardOutputs = new Set([...dbs.flatMap((d) => ['l1', 'l2'].map((t) => K(d.id, t))), ...of(['rccb']).map((r) => K(r.id, 'lo'))])
-  const lineThrough = new Set(of(['mcb', 'mccb', 'acsw', 'acm']).map((n) => n.id))
+  const lineThrough = new Set(of(['mcb', 'mccb', 'acsw', 'acm', 'ctm']).map((n) => n.id))
   const outletIds = new Set(outlets.map((o) => o.id))
   const lineAdj = new Map<string, string[]>()
   wires.forEach((w) => {

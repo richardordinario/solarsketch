@@ -33,6 +33,8 @@ export interface EquipmentProfile {
   missing?: string[]
   /** Caveats shown with the profile. */
   notes?: string
+  /** A photo the user uploaded with the Add component form: a small JPEG/PNG/WebP data URL. */
+  photo?: string
 }
 
 type ProfileInput = Omit<EquipmentProfile, 'specs' | 'example' | 'reviewed'> & { specs: Partial<Record<string, number>> }

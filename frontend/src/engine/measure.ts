@@ -199,6 +199,20 @@ export function measureNode(node: LabNode, sim: SimState, m: Measurements, v: Va
         { label: 'Energy', value: node.type === 'dcm' ? `${fmt(wh, 0)} Wh` : `${fmt(wh / 1000, 2)} kWh` },
       ]
     }
+    case 'ctm': {
+      const r = m.meters[node.id] ?? { v: 0, a: 0, w: 0 }
+      const exp = sim.meterExportWh?.[node.id] ?? 0
+      const imp = (sim.meterWh?.[node.id] ?? 0) + exp
+      return [
+        { label: 'Voltage', value: `${fmt(r.v)} V` },
+        { label: 'CT current', value: `${fmt(Math.abs(r.a), 2)} A`, abnormal: Math.abs(r.a) > s.ratedI },
+        { label: 'Grid power', value: r.w > 1 ? `${fmt(r.w, 0)} W import` : r.w < -1 ? `${fmt(-r.w, 0)} W export` : '0 W' },
+        { label: 'Export limit', value: s.exportLimit > 0 ? `${s.exportLimit} W` : '0 W (zero export)' },
+        { label: 'Curtailed by export limit', value: `${fmt(m.ac.ctmCurtailed ?? 0, 0)} W`, abnormal: (m.ac.ctmCurtailed ?? 0) > 1 },
+        { label: 'Energy imported', value: `${fmt(imp / 1000, 2)} kWh` },
+        { label: 'Energy exported', value: `${fmt(exp / 1000, 2)} kWh` },
+      ]
+    }
     case 'gnd':
       return [{ label: 'Earth resistance', value: `${s.res} Ω` }]
     default: {

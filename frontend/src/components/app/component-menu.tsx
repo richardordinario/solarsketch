@@ -6,6 +6,7 @@ import { CATALOG } from '@/engine/catalog'
 import type { EquipmentProfile } from '@/engine/profiles'
 import type { ComponentType } from '@/engine/types'
 import { t } from '@/i18n'
+import { routeUrl } from '@/lib/router'
 import { openExternal, searchTerm, webLink, type WebLink } from '@/lib/web-search'
 
 const ITEM = 'rounded-none text-[12.5px]'
@@ -75,7 +76,7 @@ export function ComponentMenu({
           </ContextMenuItem>
         )}
         {libraryLink && (
-          <ContextMenuItem className={ITEM} onClick={() => openExternal(`${location.pathname}${location.search}#/components/${type}`)}>
+          <ContextMenuItem className={ITEM} onClick={() => openExternal(routeUrl({ page: 'components', type }))}>
             <BookOpenIcon />
             {t('View in Component Library')}
           </ContextMenuItem>

@@ -313,6 +313,8 @@ export function subText(node: LabNode) {
       return `6-way · ${s.csa} mm²`
     case 'acm':
       return `kWh · ${s.ratedI} A`
+    case 'ctm':
+      return `${s.exportLimit > 0 ? `Export ≤ ${s.exportLimit} W` : 'Zero export'} · ${s.ratedI} A`
     case 'mi':
       return `${s.ratedP} W · ${s.minPvV}–${s.maxPvV} V PV`
     default:

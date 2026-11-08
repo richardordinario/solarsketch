@@ -53,6 +53,8 @@ export interface SimState {
   genHours?: number
   /** Energy through each DC/AC meter, Wh (+ consumption, − charging or export). */
   meterWh?: Record<string, number>
+  /** Energy each meter measured flowing back (negative power: export or charging), Wh. */
+  meterExportWh?: Record<string, number>
   /** Lithium BMS low-SOC cut-off active (discharge disconnected, charging allowed). */
   bmsLow?: boolean
   /** Lead-acid bank below its recommended minimum SOC (warned once per excursion). */
@@ -418,8 +420,13 @@ export function step(prev: SimState, v: ValidationResult, clear: number, speedId
   const meterIds = Object.keys(m.meters)
   if (meterIds.length) {
     const wh = { ...sim.meterWh }
-    for (const id of meterIds) wh[id] = (wh[id] ?? 0) + m.meters[id].w * (dt / 60)
+    const exp = { ...sim.meterExportWh }
+    for (const id of meterIds) {
+      wh[id] = (wh[id] ?? 0) + m.meters[id].w * (dt / 60)
+      if (m.meters[id].w < 0) exp[id] = (exp[id] ?? 0) - m.meters[id].w * (dt / 60)
+    }
     sim.meterWh = wh
+    sim.meterExportWh = exp
   }
   if (m.ac.pgrid > 0) sim.eImport = (sim.eImport ?? 0) + (m.ac.pgrid * (dt / 60)) / 1000
   if (m.ac.pgrid < 0) sim.eExport = (sim.eExport ?? 0) + (-m.ac.pgrid * (dt / 60)) / 1000

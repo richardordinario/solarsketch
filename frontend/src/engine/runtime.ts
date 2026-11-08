@@ -42,7 +42,7 @@ export interface MeterReading {
   w: number
 }
 
-const METER_TYPES = ['dcm', 'acm']
+const METER_TYPES = ['dcm', 'acm', 'ctm']
 
 /** Signed current into terminal (n, t) from its wires. */
 function inflow(flows: ReturnType<typeof wireFlows>, wires: readonly Wire[], n: string, t: string) {
@@ -59,7 +59,8 @@ function inflow(flows: ReturnType<typeof wireFlows>, wires: readonly Wire[], n: 
 /**
  * Live readings of DC shunt meters and AC energy meters, from the same flow solution the canvas
  * animates. A DC meter measures the current returning through its shunt from the load side; its
- * voltage needs the V+ sense wire. An AC meter reads the current leaving its L out terminal.
+ * voltage needs the V+ sense wire. An AC or CT meter reads the current leaving its L out terminal
+ * (for a CT meter at the grid connection: + = import, − = export).
  */
 export function readMeters(v: ValidationResult, m: Measurements, t: number, faults: readonly Fault[]): Record<string, MeterReading> {
   const nodes = v.nodes ?? []

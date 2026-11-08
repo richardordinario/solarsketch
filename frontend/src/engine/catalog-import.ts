@@ -16,23 +16,38 @@ const MAX_PROFILES = 500
 
 const types = Object.keys(CATALOG) as [ComponentType, ...ComponentType[]]
 
-const profileInput = z
-  .object({
-    type: z.enum(types),
-    brand: z.string().trim().min(1).max(60),
-    model: z.string().trim().min(1).max(100),
-    specs: z.record(z.string(), z.number().refine(Number.isFinite, 'must be a finite number')),
-    datasheet: z.object({ url: z.string().url().max(500), revision: z.string().trim().min(1).max(80) }),
-    notes: z.string().max(300).optional(),
-  })
-  .superRefine((p, ctx) => {
-    const keys = CATALOG[p.type].specs.map((s) => s[0])
-    const label = `${p.brand} ${p.model}`
-    // Keys added in rule set 1.4.0 may be omitted (older catalog files); see withLateSpecs.
-    for (const k of keys) if (!(k in p.specs) && !LATE_SPECS[k]) ctx.addIssue({ code: 'custom', message: `${label}: missing specification "${k}" (${CATALOG[p.type].specs.find((s) => s[0] === k)![1]}).` })
-    for (const k of Object.keys(p.specs)) if (!keys.includes(k)) ctx.addIssue({ code: 'custom', message: `${label}: "${k}" is not a ${CATALOG[p.type].name} specification.` })
-    for (const [k, v] of Object.entries(p.specs)) if (v < 0 && !SIGNED_SPECS.includes(k)) ctx.addIssue({ code: 'custom', message: `${label}: "${k}" cannot be negative.` })
-  })
+const datasheetRef = z.object({ url: z.string().url().max(500), revision: z.string().trim().min(1).max(80) })
+
+const deviceFields = {
+  type: z.enum(types),
+  brand: z.string().trim().min(1).max(60),
+  model: z.string().trim().min(1).max(100),
+  specs: z.record(z.string(), z.number().refine(Number.isFinite, 'must be a finite number')),
+  notes: z.string().max(300).optional(),
+}
+
+/** Every catalog spec for the type, no unknown keys, no negatives except signed coefficients. */
+function checkSpecs(p: { type: ComponentType; brand: string; model: string; specs: Record<string, number> }, ctx: z.RefinementCtx) {
+  const keys = CATALOG[p.type].specs.map((s) => s[0])
+  const label = `${p.brand} ${p.model}`
+  // Keys added in rule set 1.4.0 may be omitted (older catalog files); see withLateSpecs.
+  for (const k of keys) if (!(k in p.specs) && !LATE_SPECS[k]) ctx.addIssue({ code: 'custom', message: `${label}: missing specification "${k}" (${CATALOG[p.type].specs.find((s) => s[0] === k)![1]}).` })
+  for (const k of Object.keys(p.specs)) if (!keys.includes(k)) ctx.addIssue({ code: 'custom', message: `${label}: "${k}" is not a ${CATALOG[p.type].name} specification.` })
+  for (const [k, v] of Object.entries(p.specs)) if (v < 0 && !SIGNED_SPECS.includes(k)) ctx.addIssue({ code: 'custom', message: `${label}: "${k}" cannot be negative.` })
+}
+
+const profileInput = z.object({ ...deviceFields, datasheet: datasheetRef }).superRefine(checkSpecs)
+
+/** Largest stored device photo (data URL length). The form resizes photos to well under this. */
+export const MAX_PHOTO_CHARS = 400_000
+const photoUrl = z
+  .string()
+  .max(MAX_PHOTO_CHARS, 'The photo is too large.')
+  .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/, 'The photo must be a JPEG, PNG or WebP image.')
+
+/** A device entered in the Add component form: the datasheet link and photo are optional. */
+const deviceInput = z.object({ ...deviceFields, datasheet: datasheetRef.optional(), photo: photoUrl.optional() }).superRefine(checkSpecs)
+export type DeviceInput = z.input<typeof deviceInput>
 
 const catalogFile = z.object({
   format: z.literal(CATALOG_FORMAT),
@@ -72,27 +87,49 @@ export function parseCatalog(text: string, now = new Date()): UserCatalog {
     throw new CatalogImportError(first.code === 'custom' ? first.message : `This is not a valid SolarSketch catalog: ${first.message}${where}.`)
   }
   const id = `${slug(r.data.name) || 'catalog'}-${now.getTime().toString(36)}`
-  const retrieved = now.toISOString().slice(0, 10)
   const seen = new Set<string>()
-  const profiles = r.data.profiles.map((p): EquipmentProfile => {
+  const profiles = r.data.profiles.map((p) => {
     let pid = `user:${id}:${p.type}-${slug(p.brand)}-${slug(p.model)}`
     while (seen.has(pid)) pid += '-x'
     seen.add(pid)
-    return withLateSpecs({
-      id: pid,
-      type: p.type,
-      brand: p.brand,
-      model: p.model,
-      specs: p.specs,
-      ver: 1,
-      datasheet: `${p.brand} datasheet, ${p.datasheet.revision}`,
-      source: { url: p.datasheet.url, revision: p.datasheet.revision, retrieved },
-      example: false,
-      reviewed: false,
-      ...(p.notes ? { notes: p.notes } : {}),
-    })
+    return toProfile(pid, p, now)
   })
   return { id, name: r.data.name, importedAt: now.toISOString(), profiles }
+}
+
+function toProfile(id: string, p: z.output<typeof deviceInput>, now: Date): EquipmentProfile {
+  // Catalog files cannot carry photos; only the Add component form sets one.
+  const ds = p.datasheet
+  return withLateSpecs({
+    id,
+    type: p.type,
+    brand: p.brand,
+    model: p.model,
+    specs: p.specs,
+    ver: 1,
+    datasheet: ds ? `${p.brand} datasheet, ${ds.revision}` : 'Entered by the user (no datasheet link)',
+    ...(ds ? { source: { url: ds.url, revision: ds.revision, retrieved: now.toISOString().slice(0, 10) } } : {}),
+    example: false,
+    reviewed: false,
+    ...(p.notes ? { notes: p.notes } : {}),
+    ...(p.photo ? { photo: p.photo } : {}),
+  })
+}
+
+/** The catalog that holds devices added through the Add component form. */
+export const MY_DEVICES_ID = 'my-devices'
+export const MY_DEVICES_NAME = 'My devices'
+
+/** Validate one device from the Add component form. Throws CatalogImportError with the first problem. */
+export function parseDevice(input: unknown, now = new Date()): EquipmentProfile {
+  const r = deviceInput.safeParse(input)
+  if (!r.success) {
+    const first = r.error.issues[0]
+    const where = first.path.length ? `${first.path.join('.')}: ` : ''
+    throw new CatalogImportError(first.code === 'custom' ? first.message : `${where}${first.message}`)
+  }
+  const p = r.data
+  return toProfile(`user:${MY_DEVICES_ID}:${p.type}-${slug(p.brand)}-${slug(p.model)}-${now.getTime().toString(36)}`, p, now)
 }
 
 /** A starter file showing the format, with one entry per equipment type and placeholder values. */

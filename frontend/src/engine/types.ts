@@ -54,6 +54,7 @@ export type ComponentType =
   | 'pebar'
   | 'dcm'
   | 'acm'
+  | 'ctm'
   | 'mi'
   // PV module variants (PRD §4.1 A) and battery chemistries (PRD §4.1 D, §6.3)
   | 'pvpoly'

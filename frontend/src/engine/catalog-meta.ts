@@ -277,6 +277,14 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     model3d: 'box',
     configs: ['inline'],
   },
+  ctm: {
+    desc: 'Smart energy meter with a CT clamp on the grid line. It measures grid import and export, and the grid-tied or hybrid inverter uses its reading to hold export at or below the export limit (zero export when 0).',
+    maker: GENERIC,
+    constraints: ['At the grid connection: grid (or net meter) to Grid L / Grid N, the house to House L / House N', 'CT arrow pointing towards the house', 'Current within the CT rating'],
+    symbol: 'meter-ct',
+    model3d: 'box',
+    configs: ['inline', 'export-limit'],
+  },
   mi: {
     desc: 'Microinverter for a single PV module; several can share one AC branch through their AC daisy-chain terminals.',
     maker: GENERIC,

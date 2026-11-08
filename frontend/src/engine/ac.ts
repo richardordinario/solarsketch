@@ -78,6 +78,8 @@ export interface AcResult {
   gtiIslanded: boolean
   /** Hybrid PV curtailed because the battery is full and export is limited. */
   hybCurtailed: number
+  /** Grid-tied inverter output held back by a Smart CT meter's export limit, W. */
+  ctmCurtailed: number
   /** Position of each transfer switch. */
   atsSide: Record<string, 'main' | 'backup' | 'none'>
   /** Grids currently in outage. */
@@ -186,6 +188,7 @@ export function solveAc(v: ValidationResult, act: readonly Fault[], h: number, d
     gtiAc: 0,
     gtiIslanded: false,
     hybCurtailed: 0,
+    ctmCurtailed: 0,
     atsSide: {},
     gridOut: [],
     shed: [],
@@ -212,6 +215,12 @@ export function solveAc(v: ValidationResult, act: readonly Fault[], h: number, d
   const candidates = scheduled.filter((l) => !tripped.has(s.boardOf[l.id]) && !blocked.has(l.id))
   const loadsIn = (group: string) => candidates.filter((l) => net(l.id, 'l') === group)
 
+  // Smart CT meters: the inverters on a meter's island hold grid export to its limit (lowest wins).
+  const ctms = ac.inline.filter((d) => d.type === 'ctm')
+  const ctmLimit = (group: string) => {
+    const on = ctms.filter((c) => net(c.id, 'l') === group)
+    return on.length ? Math.min(...on.map((c) => Math.max(0, c.specs.exportLimit))) : Infinity
+  }
   const gridIn = (group: string) => ac.grids.find((g) => isl.gridLive(g) && net(g.id, 'l') === group)
   const genIn = (group: string) => ac.gens.find((g) => isl.genLive(g) && net(g.id, 'l') === group)
 
@@ -262,7 +271,8 @@ export function solveAc(v: ValidationResult, act: readonly Fault[], h: number, d
           const charge = Math.min(net, chargeLimit)
           res.hybBattery += charge
           net -= charge
-          const exportable = gridSrc ? Math.min(net, sp.exportLimit) : 0
+          const exportable = gridSrc ? Math.min(net, sp.exportLimit, ctmLimit(gridSide)) : 0
+          if (gridSrc) res.ctmCurtailed += Math.max(0, Math.min(net, sp.exportLimit) - exportable)
           res.pgrid -= exportable
           res.hybCurtailed = net - exportable
           res.hybMode = gridSrc ? 'grid' : 'battery'
@@ -344,7 +354,11 @@ export function solveAc(v: ValidationResult, act: readonly Fault[], h: number, d
       powered.push(...group)
       group.forEach((l) => (res.sourceOf[l.id] = 'grid'))
       res.pload += D
-      res.pgrid += D - gti
+      // A CT meter's export limit throttles the grid-tied inverters on this island.
+      const held = Math.max(0, gti - D - ctmLimit(g))
+      res.ctmCurtailed += held
+      res.gtiAc -= held
+      res.pgrid += D - (gti - held)
     } else if (gen) {
       if (D > gen.specs.ratedP) res.genOverload = true
       else {

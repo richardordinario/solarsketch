@@ -65,11 +65,12 @@ export const SIZE: Record<ComponentType, Vec3> = {
   pebar: [0.16, 0.03, 0.03],
   dcm: [0.1, 0.06, 0.04],
   acm: [0.036, 0.09, 0.07],
+  ctm: [0.072, 0.09, 0.07],
   mi: [0.21, 0.18, 0.04],
 }
 
 /** Equipment that sits on a bench (top at BENCH_H) rather than on the floor. */
-export const ON_BENCH: ComponentType[] = ['mppt', 'pwm', 'dcb', 'inv', 'acdb', 'tv', 'gti', 'hyb', 'nm', 'ats', 'pc', 'laptop', 'router', 'rice', 'kettle', 'micro', 'induc', 'iron', 'mc4', 'ybr', 'cbx', 'fuse', 'iso', 'dspd', 'mcb', 'mccb', 'rccb', 'aspd', 'acsw', 'dbus', 'pebar', 'dcm', 'acm', 'mi']
+export const ON_BENCH: ComponentType[] = ['mppt', 'pwm', 'dcb', 'inv', 'acdb', 'tv', 'gti', 'hyb', 'nm', 'ats', 'pc', 'laptop', 'router', 'rice', 'kettle', 'micro', 'induc', 'iron', 'mc4', 'ybr', 'cbx', 'fuse', 'iso', 'dspd', 'mcb', 'mccb', 'rccb', 'aspd', 'acsw', 'dbus', 'pebar', 'dcm', 'acm', 'ctm', 'mi']
 export const BENCH_H = 0.8
 /** PV tilt from horizontal, radians. */
 export const PV_TILT = (15 * Math.PI) / 180

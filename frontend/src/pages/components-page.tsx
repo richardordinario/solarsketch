@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { PlusIcon } from 'lucide-react'
 
+import { AddDeviceDialog } from '@/components/app/add-device-dialog'
 import { CatalogSection } from '@/components/app/catalog-section'
+import { btnPrimary } from '@/components/app/styles'
+import { Button } from '@/components/ui/button'
+import { isStorageAvailable } from '@/storage/repository'
 import { ComponentMenu } from '@/components/app/component-menu'
 import { Page, PageSection, RowList } from '@/components/app/page'
 import { SEV_COLOR, SEV_LABEL } from '@/components/lab/severity'
@@ -12,7 +17,8 @@ import { cn } from '@/lib/utils'
 import { CATALOG, CATEGORY_ORDER, DOMAIN_LABEL, RULESET_VERSION } from '@/engine/catalog'
 import { componentImage } from '@/engine/component-images'
 import { deviceImage } from '@/engine/device-images'
-import { PROFILES, type EquipmentProfile } from '@/engine/profiles'
+import { deviceProfiles, type EquipmentProfile } from '@/engine/profiles'
+import { useCatalogStore } from '@/store/catalog-store'
 import { RULES } from '@/engine/rules'
 import type { ComponentType } from '@/engine/types'
 import { t } from '@/i18n'
@@ -77,7 +83,6 @@ function ComponentCard({ type, highlight }: { type: ComponentType; highlight?: b
   )
 }
 
-const DEVICES = PROFILES.filter((p) => !p.example)
 const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, '')
 
 function DeviceCard({ p }: { p: EquipmentProfile }) {
@@ -86,7 +91,7 @@ function DeviceCard({ p }: { p: EquipmentProfile }) {
   return (
     <div className="flex min-w-0 flex-col edge bg-card">
       <div className="flex h-40 items-center justify-center border-b border-rule bg-white">
-        {img ? <DeviceThumb profileId={p.id} className="h-full w-full p-2" /> : <span className="text-[13px] font-strong text-dim">{c.code}</span>}
+        {img || p.photo ? <DeviceThumb profileId={p.id} className="h-full w-full p-2" /> : <span className="text-[13px] font-strong text-dim">{c.code}</span>}
       </div>
       <div className="border-b border-rule px-3 py-2.5">
         <div className="truncate text-[14px] font-strong" title={p.model}>
@@ -114,6 +119,7 @@ function DeviceCard({ p }: { p: EquipmentProfile }) {
           </a>
         )}
         {p.settings?.length ? <span>{t('* Installer setting, not a datasheet value.')}</span> : null}
+        {p.photo && <span>{t('Photo: added by you')}</span>}
         {img && (
           <span>
             {t(img.official ? 'Photo: manufacturer website' : 'Photo: reseller website')}
@@ -131,6 +137,10 @@ function DeviceCard({ p }: { p: EquipmentProfile }) {
 /** `type` comes from a `#/components/<type>` deep link (e.g. a lesson's hardware reference). */
 export function ComponentsPage({ type }: { type?: string }) {
   const [query, setQuery] = useState('')
+  const [adding, setAdding] = useState(false)
+  // Built-in real devices plus the user's own (Add component and imported catalogs).
+  const catalogs = useCatalogStore((s) => s.catalogs)
+  const devices = useMemo(() => deviceProfiles(), [catalogs]) // eslint-disable-line react-hooks/exhaustive-deps
   const target = type && type in CATALOG ? (type as ComponentType) : undefined
 
   // Deep link: scroll to the card and move focus there. (App re-mounts this page per link, so no filter hides it.)
@@ -151,7 +161,7 @@ export function ComponentsPage({ type }: { type?: string }) {
   })).filter((g) => g.items.length)
   const deviceGroups = CATEGORY_ORDER.map((cat) => ({
     cat,
-    items: DEVICES.filter((p) => CATALOG[p.type].cat === cat && (!q || `${p.brand} ${p.model} ${CATALOG[p.type].name} ${cat}`.toLowerCase().includes(q))),
+    items: devices.filter((p) => CATALOG[p.type].cat === cat && (!q || `${p.brand} ${p.model} ${CATALOG[p.type].name} ${cat}`.toLowerCase().includes(q))),
   })).filter((g) => g.items.length)
 
   return (
@@ -160,13 +170,20 @@ export function ComponentsPage({ type }: { type?: string }) {
       title={t('Component Library')}
       description={t('Reference specifications and terminals for every component available in the Virtual Lab. Values are educational examples, not manufacturer data.')}
       actions={
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('Search components')}
-          aria-label={t('Search components')}
-          className="h-8 w-[240px] border-(length:--bw) border-border bg-field px-2.5 text-[13px] focus-visible:ring-0 md:text-[13px] dark:bg-field"
-        />
+        <span className="flex items-center gap-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('Search components')}
+            aria-label={t('Search components')}
+            className="h-8 w-[240px] border-(length:--bw) border-border bg-field px-2.5 text-[13px] focus-visible:ring-0 md:text-[13px] dark:bg-field"
+          />
+          <Button className={btnPrimary} disabled={!isStorageAvailable()} onClick={() => setAdding(true)}>
+            <PlusIcon className="size-4" />
+            {t('Add component')}
+          </Button>
+          <AddDeviceDialog open={adding} onOpenChange={setAdding} />
+        </span>
       }
     >
       {type && !target && <p className="text-muted-foreground">{t('The component “{q}” is not in this version of the library.', { q: type })}</p>}

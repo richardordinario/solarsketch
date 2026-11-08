@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 
 /**
  * Minimal hash router: `#/learn/solar-basics` -> ['learn', 'solar-basics']. No server config needed on a static host.
- * An empty or unknown hash opens the Virtual Lab.
+ * The site root (empty hash) opens My Projects; an unknown hash opens the Virtual Lab.
  */
 export type Route =
   | { page: 'lab' }
@@ -15,7 +15,11 @@ export type Route =
   | { page: 'privacy' }
   | { page: 'terms' }
 
+/** Where the site root (no hash, `#` or `#/`) goes. */
+export const HOME: Route = { page: 'projects' }
+
 export function parseHash(hash: string): Route {
+  if (/^#?\/?$/.test(hash)) return HOME
   const [page, id] = hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent)
   switch (page) {
     case 'learn':
@@ -30,7 +34,7 @@ export function parseHash(hash: string): Route {
     case 'privacy':
     case 'terms':
       return { page }
-    // The app opens on the Virtual Lab (PRD §2.1, §13): an empty or unknown hash is the lab.
+    // An unknown hash (e.g. an old link) opens the Virtual Lab with the last project.
     default:
       return { page: 'lab' }
   }
@@ -50,6 +54,31 @@ export function href(route: Route) {
       return `#/${route.page}`
   }
 }
+
+/**
+ * Turn a path-style address into the hash route on the app's base path. Static hosts and the dev
+ * server serve the app for any path, so `/challenges` (typed, or an old bookmark) would otherwise
+ * stay in the address bar and every hash link would be appended to it (`/challenges#/components`).
+ * `/challenges` becomes `#/challenges`; a path with a hash keeps the hash; the bare site root gets
+ * the home route (`#/projects`). Returns the new URL, or null when the address is already canonical.
+ */
+export function canonicalUrl(pathname: string, search: string, hash: string, base: string): string | null {
+  const root = base.endsWith('/') ? base : base + '/'
+  if (!pathname.startsWith(root) && pathname + '/' !== root) return null
+  const rest = pathname === root + 'index.html' ? '' : pathname.slice(root.length).replace(/\/+$/, '')
+  const target = /^#?\/?$/.test(hash) ? (rest ? '#/' + rest : href(HOME)) : hash
+  const url = root + search + target
+  return url === pathname + search + hash ? null : url
+}
+
+/** Rewrite the address bar to the canonical URL (no reload, no history entry). Call before the first render. */
+export function normalizeLocation() {
+  const url = canonicalUrl(window.location.pathname, window.location.search, window.location.hash, import.meta.env.BASE_URL)
+  if (url) history.replaceState(null, '', url)
+}
+
+/** Absolute URL of a route on this app, e.g. to open it in a new tab. */
+export const routeUrl = (route: Route) => import.meta.env.BASE_URL + href(route)
 
 export function navigate(route: Route) {
   window.location.hash = href(route)

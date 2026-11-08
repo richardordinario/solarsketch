@@ -38,7 +38,7 @@ const DATASHEET = 'Manufacturer datasheet for the selected equipment'
 const NETMETER = 'Philippine Department of Energy, Net-Metering Guidebook'
 
 /** Rules added after v1.1.0. */
-const VERSION_OF: Record<string, string> = { 'TOP-006': '1.2.0', 'TOP-007': '1.2.0', 'RAT-010': '1.2.0', 'AC-001': '1.2.0', 'AC-002': '1.2.0', 'NM-001': '1.2.0', 'RAT-011': '1.3.0', 'GND-003': '1.3.0', 'PRT-004': '1.3.0', 'RAT-012': '1.4.0', 'RAT-013': '1.4.0', 'BAT-003': '1.4.0', 'BAT-004': '1.4.0', 'SHC-001': '1.4.0', 'PRT-005': '1.4.0', 'PRT-006': '1.4.0', 'BND-001': '1.4.0', 'PRT-010': '1.4.0', 'PRT-011': '1.4.0', 'PRT-012': '1.4.0', 'PRT-013': '1.4.0', 'RAT-020': '1.4.0', 'GND-010': '1.4.0', 'INF-010': '1.4.0' }
+const VERSION_OF: Record<string, string> = { 'TOP-006': '1.2.0', 'TOP-007': '1.2.0', 'RAT-010': '1.2.0', 'AC-001': '1.2.0', 'AC-002': '1.2.0', 'NM-001': '1.2.0', 'RAT-011': '1.3.0', 'GND-003': '1.3.0', 'PRT-004': '1.3.0', 'RAT-012': '1.4.0', 'RAT-013': '1.4.0', 'BAT-003': '1.4.0', 'BAT-004': '1.4.0', 'SHC-001': '1.4.0', 'PRT-005': '1.4.0', 'PRT-006': '1.4.0', 'BND-001': '1.4.0', 'PRT-010': '1.4.0', 'PRT-011': '1.4.0', 'PRT-012': '1.4.0', 'PRT-013': '1.4.0', 'RAT-020': '1.4.0', 'GND-010': '1.4.0', 'INF-010': '1.4.0', 'MTR-001': '1.5.0' }
 
 /** Suggested corrective action per rule (PRD §7.3). */
 const FIX_OF: Record<string, string> = {
@@ -84,6 +84,7 @@ const FIX_OF: Record<string, string> = {
   'GND-003': 'Run a PE conductor from the board earth bar to the outlet PE terminal.',
   'BND-001': 'Run an equipment bonding conductor from the frame or enclosure PE terminal to the earth bar or grounding rod.',
   'NM-001': 'Install a bidirectional net meter at the grid connection point.',
+  'MTR-001': 'Install the CT meter at the grid connection, between the grid (or net meter) and the installation.',
   'INF-001': 'Connect the terminal or leave it as a spare.',
   'INF-002': 'Connect L and N to an inverter output, the grid side or a board circuit.',
   'PRT-010': 'Select a fuse or breaker rated at or above the circuit current and at or below the cable ampacity.',
@@ -128,7 +129,8 @@ export const RULES: Record<string, RuleDef> = Object.fromEntries(
       ['RAT-010', 'String voltage below MPPT start', 'warning', 'Ratings', 'Grid-tied inverters', 'The string’s operating voltage is below the inverter’s MPPT start voltage.', 'The inverter may never start tracking, so the array produces nothing.', DATASHEET],
       ['AC-001', 'AC sources in parallel', 'critical', 'Topology', 'Inverters, grid, generators', 'Two voltage-forming AC sources share one AC network without a transfer switch, or a hybrid’s grid input is tied to its own output.', 'Sources fight each other and can backfeed the utility line, which endangers line workers.', PEC],
       ['AC-002', 'Grid-tied inverter without a grid', 'warning', 'Topology', 'Grid-tied inverters', 'The grid-tied inverter’s AC output does not reach the utility grid or a hybrid inverter output.', 'Anti-islanding protection keeps it off without a grid reference.', IEC62446],
-      ['NM-001', 'No net meter at the grid connection', 'warning', 'Protection', 'Grid connection', 'A system that can export is connected to the grid without a bidirectional meter.', 'Net-metered export must be measured by the utility’s bidirectional meter.', NETMETER],
+      ['NM-001', 'No net meter at the grid connection', 'warning', 'Protection', 'Grid connection', 'A system that can export is connected to the grid without a bidirectional meter (a zero-export Smart CT meter at the grid connection means it cannot export).', 'Net-metered export must be measured by the utility’s bidirectional meter.', NETMETER],
+      ['MTR-001', 'Smart CT meter not at the grid connection', 'warning', 'Topology', 'Smart CT meters', 'A Smart CT meter is on an AC network that has no utility grid.', 'The inverter limits export from the CT reading. A CT that does not see the grid flow cannot stop export, so a “zero export” setup would still push power into the utility line.', DATASHEET],
       ['RAT-011', 'Outlet overloaded', 'warning', 'Ratings', 'Convenience outlets', 'The loads plugged into an outlet (directly or through chained outlets) draw more current than the outlet’s rating.', 'An overloaded outlet and its contacts overheat, which is a common cause of house fires.', PEC],
       ['GND-003', 'Outlet not earthed', 'warning', 'Protection', 'Convenience outlets', 'The outlet PE terminal is not connected to the earthing system.', 'Appliances with metal cases rely on the outlet earth to clear a fault and to let the RCD trip.', PEC],
       ['PRT-004', 'Outlet without a protected branch circuit', 'warning', 'Protection', 'Convenience outlets', 'A supplied outlet is not fed from a distribution board circuit output.', 'Without a branch breaker and RCD, faults and overloads on the outlet are not cleared.', PEC],

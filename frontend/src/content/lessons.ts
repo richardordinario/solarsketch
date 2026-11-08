@@ -780,10 +780,11 @@ const level3: Lesson[] = [
         heading: 'Hybrid systems',
         paragraphs: [
           'A hybrid system combines both: a hybrid inverter connects PV, a battery and the grid. It can use solar first, store surplus in the battery, draw from the grid when needed, and keep essential loads running from the battery during a brownout. A generator can be added through a transfer switch.',
+          'Many installations add a Smart CT meter at the grid connection. Its current transformer (CT) clamps around the grid line, so the inverter can see how much power is being imported or exported. With an export limit (zero export when net metering is not approved), the inverter throttles its output so the meter never reads more export than the limit.',
         ],
         media: [
           { kind: 'illustration', id: 'system-types', caption: 'Off-grid, grid-tied and hybrid configurations. Arrows show the main directions of energy flow.' },
-          { kind: 'hardware', types: ['inv', 'gti', 'hyb', 'nm'] },
+          { kind: 'hardware', types: ['inv', 'gti', 'hyb', 'nm', 'ctm'] },
         ],
       },
     ],

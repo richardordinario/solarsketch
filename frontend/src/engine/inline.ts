@@ -16,14 +16,14 @@ export const PROTECTIVE: readonly ComponentType[] = ['fuse', 'mcb', 'mccb']
 /** Devices with an on/off position (`closed` spec). */
 export const SWITCHED: readonly ComponentType[] = (Object.keys(CATALOG) as ComponentType[]).filter((k) => CATALOG[k].specs.some((s) => s[0] === SWITCH_SPEC))
 /** AC devices whose supply side the AC solver reports live. */
-export const AC_INLINE: readonly ComponentType[] = ['mcb', 'mccb', 'rccb', 'acsw', 'acm', 'aspd']
+export const AC_INLINE: readonly ComponentType[] = ['mcb', 'mccb', 'rccb', 'acsw', 'acm', 'ctm', 'aspd']
 /** Surge protective devices. */
 export const SPD_TYPES: readonly ComponentType[] = ['dspd', 'aspd']
 /**
  * Pass-through devices that do not set a circuit current themselves; the current on their wires
  * is found by walking to what is behind them (RAT-020 checks their ratings).
  */
-export const PASS_TYPES: readonly ComponentType[] = ['mc4', 'ybr', 'cbx', 'iso', 'acsw', 'rccb', 'dbus', 'dcm', 'acm']
+export const PASS_TYPES: readonly ComponentType[] = ['mc4', 'ybr', 'cbx', 'iso', 'acsw', 'rccb', 'dbus', 'dcm', 'acm', 'ctm']
 /** Every component that only conducts between its terminals. */
 const CONDUCTORS = new Set<ComponentType>([...PASS_TYPES, ...PROTECTIVE, 'dcb', 'outlet', 'acdb'])
 /** DC devices with a maximum voltage rating (PRT-011). */

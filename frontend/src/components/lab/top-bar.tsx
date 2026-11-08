@@ -1,4 +1,4 @@
-import { UserIcon } from 'lucide-react'
+import { BoxesIcon, ChartNoAxesColumnIcon, FolderOpenIcon, GraduationCapIcon, TrophyIcon, UserIcon, type LucideIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -13,13 +13,13 @@ import { SunMark } from '@/components/app/sun-mark'
 import { MoonIcon, SaveIcon, SettingsIcon, SunIcon } from './icons'
 import { t } from '@/i18n'
 
-/** Main navigation in PRD §2.1 order; Settings is the gear button. */
-const NAV: { label: string; route: Route }[] = [
-  { label: 'Learn', route: { page: 'learn' } },
-  { label: 'Component Library', route: { page: 'components' } },
-  { label: 'My Projects', route: { page: 'projects' } },
-  { label: 'Challenges', route: { page: 'challenges' } },
-  { label: 'Progress', route: { page: 'progress' } },
+/** Main navigation, shown as icons with hover labels (Component Library last, at the right); Settings is the gear button. */
+const NAV: { label: string; route: Route; Icon: LucideIcon }[] = [
+  { label: 'Learn', route: { page: 'learn' }, Icon: GraduationCapIcon },
+  { label: 'My Projects', route: { page: 'projects' }, Icon: FolderOpenIcon },
+  { label: 'Challenges', route: { page: 'challenges' }, Icon: TrophyIcon },
+  { label: 'Progress', route: { page: 'progress' }, Icon: ChartNoAxesColumnIcon },
+  { label: 'Component Library', route: { page: 'components' }, Icon: BoxesIcon },
 ]
 
 /** The SolarSketch sun mark and name. */
@@ -90,26 +90,34 @@ export function TopBar() {
         <Brand />
       </div>
 
-      <nav className="flex h-[46px] min-w-0 flex-1 basis-0 flex-wrap items-stretch overflow-hidden whitespace-nowrap">
-        {NAV.map(({ label, route: r }) =>
-          r.page === route.page ? (
-            <a
-              key={label}
-              href={href(r)}
-              aria-current="page"
-              className="flex h-[46px] items-center px-2.5 font-strong text-foreground no-underline shadow-[inset_0_calc(var(--nav-underline)*-1)_0_var(--primary)] hover:text-foreground"
-            >
-              {t(label)}
-            </a>
-          ) : (
-            <a key={label} href={href(r)} className="flex h-[46px] items-center px-2.5 font-semibold text-muted-foreground no-underline hover:text-foreground">
-              {t(label)}
-            </a>
-          ),
-        )}
+      <nav aria-label={t('Main')} className="flex h-[46px] min-w-0 flex-1 basis-0 items-stretch overflow-hidden px-1.5">
+        {NAV.map(({ label, route: r, Icon }) => {
+          const current = r.page === route.page
+          return (
+            <Tooltip key={label}>
+              <TooltipTrigger
+                render={
+                  <a
+                    href={href(r)}
+                    aria-label={t(label)}
+                    aria-current={current ? 'page' : undefined}
+                    className={cn(
+                      'flex h-[46px] w-9 items-center justify-center no-underline hover:bg-muted hover:text-foreground',
+                      current ? 'text-foreground shadow-[inset_0_calc(var(--nav-underline)*-1)_0_var(--primary)]' : 'text-muted-foreground',
+                    )}
+                  />
+                }
+              >
+                <Icon className="size-4" strokeWidth={current ? 2.25 : 2} aria-hidden />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t(label)}</TooltipContent>
+            </Tooltip>
+          )
+        })}
       </nav>
 
-      <div className="flex min-w-0 items-center gap-3 edge-l px-4">
+      {/* Smaller icons on the app bar (the lab header keeps its 18px toolbar icons). */}
+      <div className="flex min-w-0 items-center gap-3 edge-l px-4 [&_svg]:size-4">
         <ThemeButton />
         <Tooltip>
           <TooltipTrigger

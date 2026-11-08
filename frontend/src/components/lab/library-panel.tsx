@@ -1,12 +1,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { PlusIcon } from 'lucide-react'
 
+import { AddDeviceDialog } from '@/components/app/add-device-dialog'
 import { ComponentMenu } from '@/components/app/component-menu'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { taskById } from '@/content/tasks'
 import { CATALOG, CATEGORY_ORDER, makeNode } from '@/engine/catalog'
 import { subText } from '@/engine/geometry'
 import { componentImage } from '@/engine/component-images'
-import { deviceImage } from '@/engine/device-images'
+import { hasDevicePhoto } from '@/engine/device-images'
 import { deviceProfiles, makeDeviceNode, type EquipmentProfile } from '@/engine/profiles'
 import type { ComponentType } from '@/engine/types'
 import { useDrawerContent } from '@/hooks/use-drawer-content'
@@ -43,6 +46,7 @@ export function LibraryPanel() {
   const taskId = useLabStore((s) => s.task?.id)
   const allowed = taskId ? taskById(taskId)?.allowed : undefined
   const [tab, setTab] = useState<Tab>('generic')
+  const [adding, setAdding] = useState(false)
   // Imported catalogs add devices, so re-derive the list when they change.
   const catalogs = useCatalogStore((s) => s.catalogs)
   const devices = useMemo(() => deviceProfiles().map((p) => ({ p, sub: subText(makeDeviceNode(p, 0, 0)) })), [catalogs]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -65,7 +69,24 @@ export function LibraryPanel() {
       <div className="flex items-center gap-2 pt-1 pr-1 pb-0.5 pl-3">
         <div className="text-[13px] font-strong">{t('Component Library')}</div>
         <div className="ml-auto text-[10px] text-muted-foreground tabular-nums">{t('{n} items', { n: count })}</div>
+        <Button
+          variant="ghost"
+          onClick={() => setAdding(true)}
+          title={t('Add your own component')}
+          aria-label={t('Add your own component')}
+          className="h-8 w-8 flex-none p-0 text-dim hover:bg-muted hover:text-foreground active:translate-y-0 dark:hover:bg-muted"
+        >
+          <PlusIcon />
+        </Button>
         <PanelToggle side="left" open label={t('Component Library')} onClick={toggle} />
+        <AddDeviceDialog
+          open={adding}
+          onOpenChange={setAdding}
+          onAdded={() => {
+            setQuery('')
+            setTab('devices')
+          }}
+        />
       </div>
       <div className="edge-b px-3 pb-2">
         <Input
@@ -143,7 +164,7 @@ function DeviceList({ groups, onAdd }: { groups: { cat: string; items: { p: Equi
                 payload={dragPayload(p.type, p.id)}
                 onAdd={() => onAdd(p)}
                 title={`${p.brand} ${p.model} · ${CATALOG[p.type].name}\n${t('Drag onto the canvas, or double-click to add. Right-click for price, tutorials and more.')}`}
-                media={deviceImage(p.id) ? <DeviceThumb profileId={p.id} className="h-full w-full" /> : <CodeBadge code={CATALOG[p.type].code} />}
+                media={hasDevicePhoto(p.id) ? <DeviceThumb profileId={p.id} className="h-full w-full" /> : <CodeBadge code={CATALOG[p.type].code} />}
                 name={p.model}
                 sub={`${p.brand} · ${sub}`}
               />

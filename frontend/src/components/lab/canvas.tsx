@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { useLabStore, useValidation, type Tool } from '@/store/lab-store'
 
 import { TERMINAL_COLOR, WIRE_COLOR } from './colors'
+import { ctmStatus } from './meter-status'
 import { DRAG_MIME, parseDragPayload } from './library-panel'
 import { useWireVisibility } from '@/hooks/use-wire-visibility'
 import { WireFilterNotice } from './wire-filter-notice'
@@ -172,6 +173,7 @@ function liveSub(n: LabNode, m: Measurements, soc: number, rcdTripped: string[],
     rccb: rcdTripped.includes(n.id) ? t('RCD TRIPPED') : undefined,
     dcm: m.meters[n.id] ? `${m.meters[n.id].v.toFixed(1)} V · ${m.meters[n.id].a.toFixed(1)} A · ${m.meters[n.id].w.toFixed(0)} W` : undefined,
     acm: m.meters[n.id] ? `${m.meters[n.id].v.toFixed(0)} V · ${m.meters[n.id].a.toFixed(2)} A · ${m.meters[n.id].w.toFixed(0)} W` : undefined,
+    ctm: m.meters[n.id] ? ctmStatus(m.meters[n.id].w) : undefined,
   }
   if (n.specs.closed === 0) return { sub: t('OPEN · switched off'), color: 'var(--critical)' }
   const lv = live[isPv(n) ? 'pv' : isBattery(n) ? 'bat' : n.type]

@@ -24,6 +24,7 @@ import { WireFilterNotice } from '@/components/lab/wire-filter-notice'
 import { useWireVisibility } from '@/hooks/use-wire-visibility'
 
 import { TERMINAL_COLOR, WIRE_COLOR } from '../lab/colors'
+import { ctmStatus } from '../lab/meter-status'
 import { hasWebGL } from './webgl'
 import { t } from '@/i18n'
 
@@ -353,6 +354,10 @@ function liveStatus(node: LabNode, m: Measurements | null, soc: number, supplied
     case 'acm': {
       const r = m.meters[node.id]
       return r ? `${r.v.toFixed(0)} V · ${r.a.toFixed(1)} A · ${r.w.toFixed(0)} W` : ''
+    }
+    case 'ctm': {
+      const r = m.meters[node.id]
+      return r ? ctmStatus(r.w) : ''
     }
     default:
       if (node.specs.closed === 0) return t('OPEN · switched off')

@@ -1,7 +1,7 @@
 import { COMPONENT_META } from './catalog-meta'
 import type { BaseComponentDef, ComponentDef, ComponentType, LabNode, TerminalType } from './types'
 
-export const RULESET_VERSION = '1.4.0'
+export const RULESET_VERSION = '1.5.0'
 export const CATALOG_VERSION = '2027.04'
 
 const BASE: Record<ComponentType, BaseComponentDef> = {
@@ -56,6 +56,7 @@ const BASE: Record<ComponentType, BaseComponentDef> = {
   // ---- Electrical measurement (PRD §4.1 J) ----
   dcm: { code: 'DCM', name: 'DC Power Meter with Shunt', cat: 'Electrical Measurement', model: 'Shunt meter, 200 A / 75 mV', ver: 1, L: [['bn', 'Shunt (source −)', 'dc-'], ['vp', 'V+ sense', 'dc+']], R: [['ln', 'Shunt (load −)', 'dc-']], bus: [['bn', 'ln']], specs: [['ratedI', 'Shunt rating', 'A', 200], ['maxV', 'Max DC voltage', 'V', 100]], doc: 'DC shunt meter, example values' },
   acm: { code: 'kWh', name: 'AC Energy Meter', cat: 'Electrical Measurement', model: 'DIN-rail kWh meter, 1P', ver: 1, L: [['l', 'L in', 'ac-l'], ['n', 'N in', 'ac-n']], R: [['lo', 'L out', 'ac-l'], ['no', 'N out', 'ac-n']], bus: [['l', 'lo'], ['n', 'no']], specs: [['ratedI', 'Rated current', 'A', 63]], doc: 'AC energy meter, example values' },
+  ctm: { code: 'CT', name: 'Smart CT Meter', cat: 'Electrical Measurement', model: 'CT-clamp export meter, 1P', ver: 1, L: [['l', 'Grid L', 'ac-l'], ['n', 'Grid N', 'ac-n']], R: [['lo', 'House L', 'ac-l'], ['no', 'House N', 'ac-n']], bus: [['l', 'lo'], ['n', 'no']], specs: [['ratedI', 'CT rating', 'A', 100], ['exportLimit', 'Export limit (0 = zero export)', 'W', 0]], doc: 'Smart CT meter, example values' },
   // ---- Inverters (PRD §4.1 E) ----
   mi: { code: 'MI', name: 'Microinverter', cat: 'Inverters', model: 'SMI-400', ver: 1, L: [['pvp', 'PV+', 'dc+'], ['pvn', 'PV−', 'dc-']], R: [['l', 'AC L', 'ac-l'], ['n', 'AC N', 'ac-n'], ['lo', 'AC L (next)', 'ac-l'], ['no', 'AC N (next)', 'ac-n'], ['pe', 'PE', 'pe']], bus: [['l', 'lo'], ['n', 'no']], specs: [['ratedP', 'Rated AC output', 'W', 380], ['maxPvV', 'Max PV input voltage', 'V', 60], ['minPvV', 'MPPT start voltage', 'V', 22], ['maxPvI', 'Max PV input current', 'A', 14], ['eff', 'Efficiency', '%', 96.5], ['acV', 'AC voltage', 'V', 230]], doc: 'SMI-400 installation guide (example)' },
   // ---- PV module variants (PRD §4.1 A); illustrative example values ----

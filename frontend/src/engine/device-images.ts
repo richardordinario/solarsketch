@@ -3,6 +3,8 @@
  * Each records where it came from. `match: 'series'` means the photo shows the product range
  * the model belongs to, not necessarily that exact model. Photos are illustrations only.
  */
+import { profileById } from './profiles'
+
 export interface DeviceImage {
   /** Path under the site base, e.g. "devices/<profile-id>.jpg". */
   file: string
@@ -38,3 +40,6 @@ export const DEVICE_IMAGES: Record<string, DeviceImage> = {
 }
 
 export const deviceImage = (profileId: string | undefined) => (profileId ? DEVICE_IMAGES[profileId] : undefined)
+
+/** True when the device has a photo: a built-in product photo or one the user uploaded (`profile.photo`). */
+export const hasDevicePhoto = (profileId: string | undefined) => !!(deviceImage(profileId) || profileById(profileId)?.photo)

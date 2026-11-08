@@ -1,8 +1,10 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import { XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { AddDeviceDialog } from '@/components/app/add-device-dialog'
 import { Notice, PageSection, RowList } from '@/components/app/page'
-import { btnGhost, btnOutline } from '@/components/app/styles'
+import { btnGhost, btnOutline, btnPrimary } from '@/components/app/styles'
 import { Button } from '@/components/ui/button'
 import { CATALOG } from '@/engine/catalog'
 import { CatalogImportError, MAX_CATALOG_BYTES, catalogTemplate } from '@/engine/catalog-import'
@@ -13,8 +15,9 @@ import { t } from '@/i18n'
 /** Import and manage equipment catalogs taken from real datasheets (PRD P2). */
 export function CatalogSection() {
   const catalogs = useCatalogStore((s) => s.catalogs)
-  const { importText, remove } = useCatalogStore.getState()
+  const { importText, remove, removeDevice } = useCatalogStore.getState()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [adding, setAdding] = useState(false)
 
   const onFile = async (file: File | undefined) => {
     if (!file) return
@@ -41,10 +44,15 @@ export function CatalogSection() {
           <Button variant="outline" className={btnOutline} disabled={!isStorageAvailable()} onClick={() => fileRef.current?.click()}>
             {t('Import catalog')}
           </Button>
+          <Button className={btnPrimary} disabled={!isStorageAvailable()} onClick={() => setAdding(true)}>
+            {t('Add component')}
+          </Button>
+          <AddDeviceDialog open={adding} onOpenChange={setAdding} />
         </span>
       }
     >
       <Notice>
+        {t('Add a single device with Add component, or many at once as a JSON catalog.')}{' '}
         {t('Add equipment from real datasheets as a JSON catalog. Every specification for the component type is required, with a datasheet link and revision. Imported values are stored in this browser, are not verified by SolarSketch, and are marked unreviewed until someone checks them against the datasheet.')}
       </Notice>
       {catalogs.length ? (
@@ -67,16 +75,30 @@ export function CatalogSection() {
                   Remove
                 </Button>
               </summary>
-              <div className="mt-2 grid grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+              <div className="mt-2 grid grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-[12px]">
                 {c.profiles.map((p) => (
                   <div key={p.id} className="contents">
                     <span className="text-muted-foreground">{CATALOG[p.type].name}</span>
                     <span className="font-semibold">
                       {p.brand} {p.model}
                     </span>
-                    <a href={p.source?.url} target="_blank" rel="noreferrer noopener" className="truncate">
-                      {p.source?.revision}
-                    </a>
+                    {p.source ? (
+                      <a href={p.source.url} target="_blank" rel="noreferrer noopener" className="truncate">
+                        {p.source.revision}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">{t('No datasheet link')}</span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('Remove {name}', { name: `${p.brand} ${p.model}` })}
+                      title={t('Remove {name}', { name: `${p.brand} ${p.model}` })}
+                      className="size-6 rounded-none hover:bg-muted"
+                      onClick={() => void removeDevice(c.id, p.id).then(() => toast.success(t('Removed {name}. Components that used it keep their values.', { name: `${p.brand} ${p.model}` })))}
+                    >
+                      <XIcon className="size-3.5" />
+                    </Button>
                   </div>
                 ))}
               </div>

@@ -1,25 +1,38 @@
 import { useState } from 'react'
 
 import { componentImage } from '@/engine/component-images'
-import { deviceImage } from '@/engine/device-images'
+import { deviceImage, hasDevicePhoto } from '@/engine/device-images'
+import { profileById } from '@/engine/profiles'
 import type { ComponentType } from '@/engine/types'
 import { cn } from '@/lib/utils'
 import { t } from '@/i18n'
 
 const src = (file: string) => import.meta.env.BASE_URL + file
 
+/** Photo the user uploaded for one of their own devices (a data URL kept with the profile). */
+const userPhoto = (profileId: string | undefined) => profileById(profileId)?.photo
+
 /** Small product thumbnail for a library row; renders nothing when the device has no photo. */
 export function DeviceThumb({ profileId, className }: { profileId: string; className?: string }) {
   const img = deviceImage(profileId)
+  const own = userPhoto(profileId)
   const [failed, setFailed] = useState(false)
-  if (!img || failed) return null
-  return <img src={src(img.file)} alt="" loading="lazy" draggable={false} onError={() => setFailed(true)} className={cn('flex-none bg-white object-contain', className)} />
+  if ((!img && !own) || failed) return null
+  return <img src={own ?? src(img!.file)} alt="" loading="lazy" draggable={false} onError={() => setFailed(true)} className={cn('flex-none bg-white object-contain', className)} />
 }
 
 /** Product photo with its source, shown in the inspector. */
 export function DevicePhoto({ profileId, name }: { profileId: string | undefined; name: string }) {
   const img = deviceImage(profileId)
+  const own = userPhoto(profileId)
   const [failed, setFailed] = useState(false)
+  if (own && !failed)
+    return (
+      <figure className="m-0 edge-b px-3 py-2">
+        <img src={own} alt={name} onError={() => setFailed(true)} className="block h-36 w-full bg-white object-contain" />
+        <figcaption className="mt-1 text-[10px] text-muted-foreground">{t('Photo: added by you')}</figcaption>
+      </figure>
+    )
   if (!img || failed) return null
   const host = new URL(img.sourcePage).hostname.replace(/^www\./, '')
   return (
@@ -70,7 +83,7 @@ export function ComponentCredit({ type }: { type: ComponentType }) {
 /** Inspector photo: the device's product photo, otherwise the generic component photo. */
 export function NodePhoto({ type, profileId, name }: { type: ComponentType; profileId: string | undefined; name: string }) {
   const [failed, setFailed] = useState(false)
-  if (deviceImage(profileId)) return <DevicePhoto profileId={profileId} name={name} />
+  if (hasDevicePhoto(profileId)) return <DevicePhoto profileId={profileId} name={name} />
   const img = componentImage(type)
   if (!img || failed) return null
   return (
