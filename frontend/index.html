@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ec3013" />
+    <meta name="description" content="Solar PV virtual lab: wire, validate and simulate off-grid systems." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The production build adds a Content-Security-Policy meta tag here (see cspPlugin in vite.config.ts). -->
+    <script>
+      try {
+        var st = JSON.parse(localStorage.getItem('solarsketch:settings') || '{}') || {}
+        var t = st.theme
+        if (st.lang === 'fil') document.documentElement.lang = 'fil'
+        if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
+    <!-- Splash screen: plain HTML/CSS so it shows before the app's JavaScript loads. main.tsx fades it out. -->
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: #f3f2f2;
+        color: #201e1d;
+        font-family: system-ui, sans-serif;
+        transition: opacity 240ms ease-out;
+      }
+      .dark #splash {
+        background: #17191c;
+        color: #e6e8ea;
+      }
+      #splash.splash-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash svg {
+        overflow: visible;
+        width: 72px;
+        height: 72px;
+        color: #ec3013;
+      }
+      #splash .splash-rays {
+        transform-origin: 12px 12px;
+        animation: splash-rays 2.4s linear infinite;
+      }
+      #splash .splash-core {
+        transform-origin: 12px 12px;
+        animation: splash-core 1.2s ease-in-out infinite;
+      }
+      #splash .splash-ray {
+        transform-box: fill-box;
+        transform-origin: center bottom;
+        animation: splash-ray 1.2s ease-in-out infinite;
+      }
+      #splash .splash-name {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      #splash .splash-sub {
+        font-size: 12px;
+        opacity: 0.65;
+      }
+      @keyframes splash-rays {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes splash-ray {
+        0%,
+        100% {
+          transform: translateY(1px) scaleY(0.55);
+          opacity: 0.55;
+        }
+        40% {
+          transform: translateY(-1.4px) scaleY(1.2);
+          opacity: 1;
+        }
+      }
+      @keyframes splash-core {
+        50% {
+          transform: scale(0.82);
+          opacity: 0.75;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash .splash-rays,
+        #splash .splash-ray,
+        #splash .splash-core {
+          animation: none;
+        }
+        #splash {
+          transition: none;
+        }
+      }
+    </style>
+    <title>Virtual Lab · SolarSketch</title>
+  </head>
+  <body>
+    <div id="splash" role="status" aria-label="Loading SolarSketch">
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <circle class="splash-core" cx="12" cy="12" r="5" fill="currentColor" />
+        <g class="splash-rays" stroke="currentColor" stroke-linecap="round" stroke-width="2.25">
+          <g transform="rotate(0 12 12)"><line class="splash-ray" style="animation-delay: 0.00s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+          <g transform="rotate(45 12 12)"><line class="splash-ray" style="animation-delay: 0.15s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+          <g transform="rotate(90 12 12)"><line class="splash-ray" style="animation-delay: 0.30s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+          <g transform="rotate(135 12 12)"><line class="splash-ray" style="animation-delay: 0.45s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+          <g transform="rotate(180 12 12)"><line class="splash-ray" style="animation-delay: 0.60s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+          <g transform="rotate(225 12 12)"><line class="splash-ray" style="animation-delay: 0.75s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+          <g transform="rotate(270 12 12)"><line class="splash-ray" style="animation-delay: 0.90s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+          <g transform="rotate(315 12 12)"><line class="splash-ray" style="animation-delay: 1.05s" x1="12" y1="1.5" x2="12" y2="4" /></g>
+        </g>
+      </svg>
+      <div class="splash-name">SolarSketch</div>
+      <div class="splash-sub">Solar PV Virtual Lab</div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

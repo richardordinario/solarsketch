@@ -1,0 +1,325 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* SolarSketch Virtual Lab. Light tokens from "Virtual Lab", dark from "Virtual Lab v2 Dark". */
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: "Google Sans", system-ui, sans-serif;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  /* Lab-specific tokens */
+  --color-canvas: var(--canvas);
+  --color-field: var(--field);
+  --color-rule: var(--rule);
+  --color-divider: var(--divider);
+  --color-node: var(--node);
+  --color-node-border: var(--node-border);
+  --color-subtle: var(--subtle);
+  --color-dim: var(--dim);
+  --color-label: var(--label);
+  --color-note: var(--note);
+  --color-primary-hover: var(--primary-hover);
+  --color-critical: var(--critical);
+  --color-warning: var(--warning);
+  --color-link: var(--link);
+  --color-row-active: var(--row-active);
+  --color-primary-soft: var(--primary-soft);
+  --color-note-fg: var(--note-fg);
+  --color-active-fg: var(--active-fg);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --flow: #ffd000;
+  --flow-glow: rgba(0, 0, 0, 0.6);
+  /* Light — "Virtual Lab" design colours, with the dark theme's subtle 1px borders */
+  --radius: 0rem;
+  --background: #f3f2f2;
+  --foreground: #201e1d;
+  --card: #fcfbfb;
+  --card-foreground: #201e1d;
+  --popover: #fcfbfb;
+  --popover-foreground: #201e1d;
+  --primary: #ec3013;
+  --primary-foreground: #ffffff;
+  --primary-hover: #dd2b0f;
+  --secondary: #201e1d;
+  --secondary-foreground: #f3f2f2;
+  --muted: #eae9e9;
+  --muted-foreground: #605d5d;
+  --accent: #eae9e9;
+  --accent-foreground: #201e1d;
+  --destructive: #ae1800;
+  --border: #d7d3d3;
+  --input: #d7d3d3;
+  --ring: #ec3013;
+
+  --canvas: #f8f4f4;
+  --field: #f8f4f4;
+  --rule: #d7d3d3;
+  --divider: #d7d3d3;
+  --node: #fcfbfb;
+  --node-border: #d7d3d3;
+  --node-code-fg: #fcfbfb;
+  --node-shadow: rgba(45, 43, 43, 0.16);
+  --term-empty: #fcfbfb;
+  --subtle: #7d7979;
+  --dim: #201e1d;
+  --label: #444141;
+  --note: #eae9e9;
+  --note-fg: #444141;
+  --note-border: 0;
+  --fix-border: 1px solid rgba(236, 48, 19, 0.6);
+  --fix-bg: transparent;
+  --critical: #ae1800;
+  --warning: #201e1d;
+  --badge-warn-bg: #f3f2f2;
+  --badge-warn-fg: #201e1d;
+  --link: #ae1800;
+  --row-active: #fff2ef;
+  --primary-soft: #ffc4b8;
+  --active-fg: #f3f2f2;
+  --grid-major: rgba(32, 30, 29, 0.1);
+  --grid-minor: rgba(32, 30, 29, 0.045);
+
+  /* Electrical conventions (visual only) */
+  --term-dc-pos: #ec3013;
+  --term-dc-neg: #201e1d;
+  --term-dc: #605d5d;
+  --term-ac-l: #7a4a24;
+  --term-ac-n: #2f5fa8;
+  --term-pe: #2f8a3a;
+  --term-pe-stripe: #e3c21b;
+
+  /* Structure */
+  --bw: 1px;
+  --fw-strong: 800;
+  --divider-h: 20px;
+  --nav-underline: 2px;
+  --tool-hover-bg: #eae9e9;
+  --tool-hover-active-bg: #eae9e9;
+  --tool-hover-outline: none;
+}
+
+.dark {
+  --flow: #ffe14d;
+  --flow-glow: rgba(255, 214, 0, 0.85);
+  /* Dark — "Virtual Lab v2 Dark" design */
+  --background: #17191c;
+  --foreground: #e6e8ea;
+  --card: #212529;
+  --card-foreground: #e6e8ea;
+  --popover: #1d2024;
+  --popover-foreground: #e6e8ea;
+  --secondary: #2d3238;
+  --secondary-foreground: #e6e8ea;
+  --muted: #262a30;
+  --muted-foreground: #959ba2;
+  --accent: #262a30;
+  --accent-foreground: #e6e8ea;
+  --destructive: #ff7a5c;
+  --border: #2c3036;
+  --input: #2c3036;
+
+  --canvas: #131518;
+  --field: #1d2024;
+  --rule: #23272c;
+  --divider: #30353b;
+  --node: #212529;
+  --node-border: #353a41;
+  --node-code-fg: #e6e8ea;
+  --node-shadow: rgba(0, 0, 0, 0.45);
+  --term-empty: #1a1d21;
+  --subtle: #6f767d;
+  --dim: #aeb4ba;
+  --label: #b8bdc2;
+  --note: #1f2227;
+  --note-fg: #aeb4ba;
+  --note-border: 1px solid #2c3036;
+  --fix-border: 1px solid rgba(236, 48, 19, 0.6);
+  --fix-bg: rgba(236, 48, 19, 0.08);
+  --critical: #ff7a5c;
+  --warning: #f2b84b;
+  --badge-warn-bg: #f2b84b;
+  --badge-warn-fg: #17191c;
+  --link: #ff8a70;
+  --row-active: #2a201d;
+  --primary-soft: rgba(236, 48, 19, 0.35);
+  --active-fg: #ffffff;
+  --grid-major: rgba(255, 255, 255, 0.055);
+  --grid-minor: rgba(255, 255, 255, 0.025);
+
+  --term-dc-neg: #8d949b;
+  --term-dc: #959ba2;
+  --term-ac-l: #b0703a;
+  --term-ac-n: #4d86d9;
+  --term-pe: #3fae4c;
+
+  --bw: 1px;
+  --fw-strong: 700;
+  --divider-h: 20px;
+  --nav-underline: 2px;
+  --tool-hover-bg: #262a30;
+  --tool-hover-active-bg: #262a30;
+  --tool-hover-outline: none;
+}
+
+/* Panel borders. Width comes from --bw (1px in both themes) so it can be tuned per theme. */
+@utility edge {
+  border: var(--bw) solid var(--border);
+}
+@utility edge-t {
+  border-top: var(--bw) solid var(--border);
+}
+@utility edge-r {
+  border-right: var(--bw) solid var(--border);
+}
+@utility edge-b {
+  border-bottom: var(--bw) solid var(--border);
+}
+@utility edge-l {
+  border-left: var(--bw) solid var(--border);
+}
+@utility font-strong {
+  font-weight: var(--fw-strong);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button,
+  input,
+  select {
+    font-family: inherit;
+    color: inherit;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  a {
+    color: var(--link);
+    text-decoration: underline;
+  }
+  a:hover {
+    color: var(--primary);
+  }
+  ::selection {
+    background: var(--primary-soft);
+  }
+}
+
+/* Current flow animation (components/lab/canvas.tsx FlowLayer): dots move along the wire path. */
+.flow-dots {
+  stroke: var(--flow);
+  filter: drop-shadow(0 0 1.5px var(--flow-glow));
+  animation-name: flow-dots;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes flow-dots {
+  to {
+    stroke-dashoffset: -14.1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-dots {
+    animation: none;
+  }
+}
+
+/* Project-opening loader (components/app/sun-loader.tsx): the brand sun's rays turn and the core glows. */
+.sun-rays {
+  transform-origin: 12px 12px;
+  animation: sun-rays 2.4s linear infinite;
+}
+.sun-core {
+  transform-origin: 12px 12px;
+  animation: sun-core 1.2s ease-in-out infinite;
+}
+/* Each ray pops outward from its inner end; staggered delays (sun-mark.tsx) make a wave around the sun. */
+.sun-ray {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: sun-ray 1.2s ease-in-out infinite;
+}
+.sun-loader-in {
+  animation: sun-loader-in 160ms ease-out;
+}
+@keyframes sun-rays {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sun-ray {
+  0%,
+  100% {
+    transform: translateY(1px) scaleY(0.55);
+    opacity: 0.55;
+  }
+  40% {
+    transform: translateY(-1.4px) scaleY(1.2);
+    opacity: 1;
+  }
+}
+@keyframes sun-core {
+  50% {
+    transform: scale(0.82);
+    opacity: 0.75;
+  }
+}
+@keyframes sun-loader-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sun-rays,
+  .sun-ray,
+  .sun-core,
+  .sun-loader-in {
+    animation: none;
+  }
+}

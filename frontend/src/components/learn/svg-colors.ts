@@ -1,0 +1,22 @@
+/** Theme colours for lesson drawings: CSS variables, so drawings follow light and dark mode. */
+export const C = {
+  fg: 'var(--foreground)',
+  muted: 'var(--muted-foreground)',
+  subtle: 'var(--subtle)',
+  rule: 'var(--rule)',
+  card: 'var(--card)',
+  node: 'var(--node)',
+  nodeBorder: 'var(--node-border)',
+  field: 'var(--field)',
+  primary: 'var(--primary)',
+  soft: 'var(--primary-soft)',
+  critical: 'var(--critical)',
+  pos: 'var(--term-dc-pos)',
+  neg: 'var(--term-dc-neg)',
+  dc: 'var(--term-dc)',
+  l: 'var(--term-ac-l)',
+  n: 'var(--term-ac-n)',
+  pe: 'var(--term-pe)',
+  peStripe: 'var(--term-pe-stripe)',
+  flow: 'var(--flow)',
+} as const
