@@ -1066,4 +1066,6 @@ export const fil: Record<string, string> = {
   'The same project stands up in 3D: the array on the roof, the inverter and battery on the wall, every cable routed to the loads it feeds. Day turns to night with the simulation clock.': 'Ang parehong project, nakatayo sa 3D: ang array sa bubong, ang inverter at baterya sa pader, at bawat kable papunta sa mga load na pinapagana nito. Nagiging gabi ang araw ayon sa orasan ng simulation.',
   'Virtual PV lab': 'Virtual na PV lab',
   'Made for the Philippines': 'Para sa Pilipinas',
+  'Built by {name}': 'Ginawa ni {name}',
+  'Built by': 'Gumawa',
 }

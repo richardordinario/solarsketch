@@ -1,5 +1,6 @@
 import { CATALOG_VERSION, RULESET_VERSION } from '@/engine/catalog'
 import { useLabStore, useValidation } from '@/store/lab-store'
+import { AUTHOR } from '@/lib/credits'
 import { t } from '@/i18n'
 
 const CELL = 'border-r border-rule px-3'
@@ -31,6 +32,7 @@ export function StatusBar() {
         {simState}
       </div>
       <div className="flex-1" />
+      <div className="hidden border-l border-rule px-3 text-muted-foreground lg:block">{t('Built by {name}', { name: AUTHOR })}</div>
       <div className="truncate px-3 text-muted-foreground">{t('Educational simulation. Does not certify an installation or indicate PEC compliance.')}</div>
     </footer>
   )

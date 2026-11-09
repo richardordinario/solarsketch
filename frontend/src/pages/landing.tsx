@@ -4,6 +4,7 @@ import { SunMark } from '@/components/app/sun-mark'
 import { CATALOG } from '@/engine/catalog'
 import { SHOWCASE_CLEAR, showcaseDay, showcaseHour, shotAt, stateAt, SHOWCASE_TEMPLATE } from '@/engine/showcase-day'
 import { compute } from '@/engine/simulation'
+import { AUTHOR } from '@/lib/credits'
 import { href } from '@/lib/router'
 import { newFromTemplate } from '@/store/project-actions'
 import { useT } from '@/i18n'
@@ -393,7 +394,8 @@ function Footer({ children }: { children: ReactNode }) {
         <span className="font-bold">SolarSketch</span>
         <span className="max-w-[640px] text-pretty">· {children}</span>
       </div>
-      <div className="flex gap-5">
+      <div className="flex flex-wrap items-center gap-5">
+        <span className="font-semibold">{T('Built by {name}', { name: AUTHOR })}</span>
         <a className="text-inherit" href={href({ page: 'privacy' })}>
           {T('Privacy Policy')}
         </a>

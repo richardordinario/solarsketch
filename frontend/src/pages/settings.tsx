@@ -10,6 +10,7 @@ import { LEGAL_DOCS, LEGAL_EFFECTIVE, LEGAL_VERSION } from '@/content/legal'
 import { EXPERTISE_OPTIONS, GOAL_OPTIONS, PURPOSE_OPTIONS } from '@/content/profile'
 import { CATALOG_VERSION, RULESET_VERSION } from '@/engine/catalog'
 import { useTheme } from '@/hooks/use-theme'
+import { AUTHOR } from '@/lib/credits'
 import { href } from '@/lib/router'
 import { cn } from '@/lib/utils'
 import { isStorageAvailable, resetAllData, storageKind, storageUsage } from '@/storage/repository'
@@ -268,6 +269,9 @@ export function SettingsPage() {
               </a>
             </Row>
           ))}
+          <Row label={t('Built by')}>
+            <span className="font-semibold">{AUTHOR}</span>
+          </Row>
           <Row label={t('Versions')}>
             <span className="text-muted-foreground tabular-nums">
               Rules v{RULESET_VERSION} · Catalog {CATALOG_VERSION}
