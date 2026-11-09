@@ -11,6 +11,7 @@ import { DESIGN_MIN_TEMP } from '@/engine/pv-model'
 import { terminal, terminalName, wireRoutes } from '@/engine/geometry'
 import { matchesProfile, nodeTitle, profileById, profilesFor, type EquipmentProfile } from '@/engine/profiles'
 import { measureNode } from '@/engine/measure'
+import { estimateCost, peso } from '@/engine/pricing'
 import { fixFor, ruleById } from '@/engine/rules'
 import { PERFORMANCE_FACTOR, clockStr, compute } from '@/engine/simulation'
 import type { LabNode, TermRef, Wire, WireColor } from '@/engine/types'
@@ -76,6 +77,7 @@ function ProjectSummary({ v }: { v: ValidationResult }) {
     { k: 'Connected loads', v: `${loads.length} · ${loads.reduce((a, l) => a + l.specs.p, 0)} W peak` },
     { k: 'Components / wires', v: `${nodes.length} / ${wireCount}` },
   ]
+  const cost = estimateCost(nodes)
 
   return (
     <div>
@@ -91,6 +93,40 @@ function ProjectSummary({ v }: { v: ValidationResult }) {
           <span className="text-right font-semibold tabular-nums">{s.v}</span>
         </div>
       ))}
+      <SectionLabel className="px-3 pt-3 pb-0.5">{t('Estimated cost')}</SectionLabel>
+      {cost.lines.length ? (
+        <>
+          {cost.lines.map((l) => (
+            <div key={l.type} className={`flex justify-between gap-3 px-3 py-1 ${ROW}`}>
+              <span className="text-muted-foreground">
+                {l.qty} × {l.name}
+              </span>
+              <span className="text-right font-semibold tabular-nums">{peso(l.amount)}</span>
+            </div>
+          ))}
+          {cost.appliances > 0 && (
+            <>
+              <div className={`flex justify-between gap-3 px-3 py-1 ${ROW}`}>
+                <span className="text-muted-foreground">{t('Solar and electrical equipment')}</span>
+                <span className="text-right font-semibold tabular-nums">{peso(cost.equipment)}</span>
+              </div>
+              <div className={`flex justify-between gap-3 px-3 py-1 ${ROW}`}>
+                <span className="text-muted-foreground">{t('Appliances (loads)')}</span>
+                <span className="text-right font-semibold tabular-nums">{peso(cost.appliances)}</span>
+              </div>
+            </>
+          )}
+          <div className={`flex justify-between gap-3 px-3 py-1.5 ${ROW}`}>
+            <span className="font-strong">{t('Total estimate')}</span>
+            <span className="text-right font-strong tabular-nums">{peso(cost.total)}</span>
+          </div>
+        </>
+      ) : (
+        <div className={`px-3 py-1 text-muted-foreground ${ROW}`}>{t('No priced components yet.')}</div>
+      )}
+      <div className="px-3 pt-1.5 pb-1 text-[11px] text-pretty text-muted-foreground">
+        {t('Example prices for learning, not a quote. Excludes the utility grid service, the grounding rod, wiring and labour.')}
+      </div>
       <SectionLabel className="px-3 pt-3 pb-0.5">{t('Simulation model')}</SectionLabel>
       <div className="mx-3 mt-1 mb-2 edge px-3 py-2 text-[12px] font-strong tabular-nums">
         P<sub>PV</sub> = P<sub>STC</sub> × (G ÷ 1000) × f × f<sub>T</sub> × f<sub>O</sub>
