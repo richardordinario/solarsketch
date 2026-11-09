@@ -9,6 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useRoute, type Route } from '@/lib/router'
 import { ChallengesPage } from '@/pages/challenges'
 import { ComponentsPage } from '@/pages/components-page'
+import { LandingPage } from '@/pages/landing'
 import { LearnPage } from '@/pages/learn'
 import { ProgressPage } from '@/pages/progress'
 import { ProjectsPage } from '@/pages/projects'
@@ -30,6 +31,7 @@ function StorageBanner() {
 }
 
 const PAGE_NAME: Record<Route['page'], string> = {
+  landing: 'SolarSketch',
   lab: 'Virtual Lab',
   learn: 'Learn',
   components: 'Component Library',
@@ -59,6 +61,8 @@ function usePageLoader(route: Route) {
 function CurrentPage() {
   const route = useRoute()
   switch (route.page) {
+    case 'landing':
+      return <LandingPage />
     case 'learn':
       return <LearnPage lessonId={route.lessonId} />
     case 'challenges':
@@ -96,7 +100,7 @@ export default function App() {
     <TooltipProvider delay={400}>
       {/* Re-mount the UI when the language changes; projects and simulation live in stores. */}
       <div key={lang} className="flex h-screen flex-col overflow-hidden bg-background text-[13px] leading-[1.4]">
-        {route.page !== 'lab' && (
+        {route.page !== 'lab' && route.page !== 'landing' && (
           <div className="h-12 flex-none">
             <TopBar />
           </div>
@@ -108,8 +112,8 @@ export default function App() {
       </div>
       <Toaster position="bottom-right" />
       <PwaPrompt />
-      {/* Outside the language-keyed shell, so switching language keeps the answers so far. */}
-      <Onboarding />
+      {/* Outside the language-keyed shell, so switching language keeps the answers so far. Not over the landing page. */}
+      {route.page !== 'landing' && <Onboarding />}
       <SunLoader />
     </TooltipProvider>
   )

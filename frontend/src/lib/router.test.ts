@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { canonicalUrl, href, parseHash } from './router'
 
 describe('parseHash', () => {
-  it('opens My Projects at the site root', () => {
-    for (const h of ['', '#', '#/']) expect(parseHash(h)).toEqual({ page: 'projects' })
+  it('opens the landing page at the site root', () => {
+    for (const h of ['', '#', '#/']) expect(parseHash(h)).toEqual({ page: 'landing' })
   })
 
   it('keeps the lab for #/lab and unknown hashes', () => {
@@ -14,10 +14,11 @@ describe('parseHash', () => {
 })
 
 describe('canonicalUrl', () => {
-  it('sends the bare root to My Projects', () => {
-    expect(canonicalUrl('/', '', '', '/')).toBe('/#/projects')
-    expect(canonicalUrl('/', '', '#/', '/')).toBe('/#/projects')
-    expect(canonicalUrl('/index.html', '', '', '/')).toBe('/#/projects')
+  it('sends the bare root to the landing page', () => {
+    expect(canonicalUrl('/', '', '', '/')).toBe('/#/')
+    expect(canonicalUrl('/', '', '#', '/')).toBe('/#/')
+    expect(canonicalUrl('/', '', '#/', '/')).toBeNull()
+    expect(canonicalUrl('/index.html', '', '', '/')).toBe('/#/')
   })
 
   it('leaves a canonical address alone', () => {
@@ -37,7 +38,7 @@ describe('canonicalUrl', () => {
 
   it('respects a sub-path base', () => {
     expect(canonicalUrl('/solarlab/', '', '#/lab', '/solarlab/')).toBeNull()
-    expect(canonicalUrl('/solarlab', '', '', '/solarlab/')).toBe('/solarlab/#/projects')
+    expect(canonicalUrl('/solarlab', '', '', '/solarlab/')).toBe('/solarlab/#/')
     expect(canonicalUrl('/solarlab/projects', '', '', '/solarlab/')).toBe('/solarlab/#/projects')
     expect(canonicalUrl('/elsewhere', '', '', '/solarlab/')).toBeNull()
   })

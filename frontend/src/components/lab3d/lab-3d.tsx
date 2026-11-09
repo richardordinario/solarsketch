@@ -14,6 +14,7 @@ import { terminal } from '@/engine/geometry'
 import { wireFlows, type WireFlow } from '@/engine/flows'
 import { BENCH_H, HOUSE_FRONT_Z, PV_TILT, cablePoints, layout3d, routeCable, sunDirection, terminalPos3d, type Environment3D, type Layout3D, type Placement, type Vec3 } from '@/engine/layout3d'
 import { compute, isDaylight, type Measurements } from '@/engine/simulation'
+import { SHOWCASE_SHOTS, showcaseHour } from '@/engine/showcase-day'
 import type { LabNode, TerminalType, Wire } from '@/engine/types'
 import { nodeMap, type ValidationResult } from '@/engine/validation'
 import { useTheme } from '@/hooks/use-theme'
@@ -1010,5 +1011,190 @@ export default function Lab3D() {
       <WireFilterNotice v={v} nm={nodeMap(nodes)} className="top-10 bottom-auto" />
       <ControlsHelp />
     </div>
+  )
+}
+
+/** Sky colour through the showcase day: [hour, colour]. */
+const SKY_KEYS: [number, string][] = [
+  [5, '#141a2e'],
+  [6, '#3b3352'],
+  [6.8, '#e9a073'],
+  [8.5, '#a8cbe8'],
+  [12, '#c3e2f6'],
+  [15.5, '#a9cdec'],
+  [17.3, '#ef9a62'],
+  [18.2, '#4a3352'],
+  [19.2, '#141a2e'],
+]
+
+function skyAt(hour: number, out: THREE.Color) {
+  const i = SKY_KEYS.findIndex(([h]) => h > hour)
+  if (i <= 0) return out.set(SKY_KEYS[i === 0 ? 0 : SKY_KEYS.length - 1][1])
+  const [h0, c0] = SKY_KEYS[i - 1]
+  const [h1, c1] = SKY_KEYS[i]
+  return out.set(c0).lerp(new THREE.Color(c1), (hour - h0) / (h1 - h0))
+}
+
+interface ShowcaseProps {
+  nodes: LabNode[]
+  wires: Wire[]
+  v: ValidationResult
+  /** Engine measurements at the current showcase time (drives lit loads and generating panels). */
+  live: Measurements | null
+  soc: number
+  /** Scroll progress, 0–1, read every frame. */
+  progress: React.RefObject<number>
+}
+
+/** Orbits the camera once around the house and moves the sun as `progress` goes from 0 to 1. */
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
+
+/**
+ * Flies the camera between the SHOWCASE_SHOTS as `progress` goes from 0 to 1 (05:30 to 19:00):
+ * wide shots of the house at the ends, close-ups of components in between, and moves the sun.
+ */
+function ShowcaseRig({ layout, nodes, progress }: { layout: Layout3D; nodes: LabNode[]; progress: React.RefObject<number> }) {
+  const sun = useRef<THREE.DirectionalLight>(null)
+  const hemi = useRef<THREE.HemisphereLight>(null)
+  const smooth = useRef(progress.current ?? 0)
+  const sky = useMemo(() => new THREE.Color(), [])
+  const camera = useThree((s) => s.camera)
+  const size = useThree((s) => s.size)
+  const wide = size.width / size.height > 1.15
+  // Keep the subject clear of the copy: right of centre on wide screens (copy on the left), above
+  // centre on narrow ones (readout at the top, chapter cards at the bottom).
+  useEffect(() => {
+    if (wide) camera.setViewOffset(size.width, size.height, -size.width * 0.17, size.height * 0.07, size.width, size.height)
+    else camera.setViewOffset(size.width, size.height, 0, size.height * 0.06, size.width, size.height)
+  }, [camera, size, wide])
+
+  // Camera position and look-at point of every shot.
+  const shots = useMemo(() => {
+    // Same house box as Room: centred on x = 0, its front face at HOUSE_FRONT_Z.
+    const [x0, x1] = layout.bounds
+    const houseW = Math.max(6, Math.max(10, x1 - x0 + 4) - 4)
+    const house = new THREE.Vector3(0, 1.9, HOUSE_FRONT_Z - 1.2)
+    const fit = Math.max(1, 1.25 / (size.width / size.height))
+    return SHOWCASE_SHOTS.map((s) => {
+      const placed = s.focus ? nodes.filter((n) => s.focus!.some((ty) => (ty === 'pv' ? isPv(n) : ty === 'bat' ? isBattery(n) : n.type === ty))).map((n) => layout.placements[n.id]).filter(Boolean) : []
+      const target = placed.length ? placed.reduce((acc, p) => acc.add(new THREE.Vector3(...p.position)), new THREE.Vector3()).divideScalar(placed.length) : house
+      const dist = (placed.length ? (s.dist ?? 3) : houseW * 1.35 + 5) * fit
+      const dir = new THREE.Vector3(Math.sin(s.az) * Math.cos(s.el), Math.sin(s.el), Math.cos(s.az) * Math.cos(s.el))
+      return { hour: s.hour, target, pos: target.clone().addScaledVector(dir, dist) }
+    })
+  }, [layout, nodes, size])
+  const look = useRef(new THREE.Vector3())
+
+  useFrame(({ camera, scene, clock }, dt) => {
+    smooth.current = THREE.MathUtils.damp(smooth.current, progress.current ?? 0, 3.5, Math.min(dt, 0.1))
+    const p = smooth.current
+    const h = showcaseHour(p)
+    // Between two shots, ease so the camera settles on each subject while its chapter is on screen.
+    let i = shots.findIndex((s) => s.hour > h)
+    if (i === -1) i = shots.length - 1
+    if (i === 0) i = 1
+    const a = shots[i - 1]
+    const b = shots[i]
+    const t = easeInOut(THREE.MathUtils.clamp((h - a.hour) / (b.hour - a.hour), 0, 1))
+    // Swing out a little mid-flight so moves between close-ups read as travel, not a cut.
+    const lift = Math.sin(t * Math.PI) * 0.9
+    // A slow breathing drift keeps a held shot alive.
+    const drift = Math.sin(clock.elapsedTime * 0.35) * 0.06
+    camera.position.lerpVectors(a.pos, b.pos, t)
+    camera.position.x += drift
+    camera.position.y += lift + drift * 0.5
+    camera.lookAt(look.current.lerpVectors(a.target, b.target, t))
+    const hour = h
+    const day = hour > 6 && hour < 18
+    skyAt(hour, sky)
+    if (scene.background instanceof THREE.Color) scene.background.copy(sky)
+    else scene.background = sky.clone()
+    if (scene.fog) scene.fog.color.copy(sky)
+    if (sun.current) {
+      sun.current.position.set(...sunDirection(hour))
+      sun.current.intensity = day ? 0.5 + 2.4 * Math.max(0, Math.sin((Math.PI * (hour - 6)) / 12)) : 0.12
+      sun.current.color.set(day && hour > 7.2 && hour < 16.8 ? '#fff2dc' : day ? '#ffb27a' : '#9fb4ff')
+    }
+    if (hemi.current) hemi.current.intensity = day ? 0.75 : 0.28
+  })
+
+  return (
+    <>
+      <hemisphereLight ref={hemi} args={['#ffffff', '#b8b0a8', 0.75]} />
+      <directionalLight
+        ref={sun}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-12}
+      />
+    </>
+  )
+}
+
+function ShowcaseScene({ nodes, wires, v, live, soc, progress }: ShowcaseProps) {
+  const pal = usePalette()
+  const layout = useMemo(() => layout3d(nodes, 'rooftop'), [nodes])
+  const nm = useMemo(() => nodeMap(nodes), [nodes])
+  const day = !!live && live.G > 0
+  const none = () => undefined
+  return (
+    <>
+      <fog attach="fog" args={['#c3e2f6', 22, 55]} />
+      <ShowcaseRig layout={layout} nodes={nodes} progress={progress} />
+      <Room env="rooftop" bounds={layout.bounds} pal={pal} day={day} />
+      {nodes.map((n) => {
+        const p = layout.placements[n.id]
+        if (!p) return null
+        return (
+          <Equipment key={n.id} node={n} p={p} selected={false} hover={false} live={live} soc={soc} supplied={v.sys.supplied.some((l) => l.id === n.id)} pal={pal} onHover={none} onSelect={none} />
+        )
+      })}
+      {wires.map((w, i) => {
+        const na = nm[w.a.n]
+        const nb = nm[w.b.n]
+        if (!na || !nb || !layout.placements[na.id] || !layout.placements[nb.id]) return null
+        const a = terminalPos3d(na, w.a.t, layout.placements[na.id])
+        const b = terminalPos3d(nb, w.b.t, layout.placements[nb.id])
+        const ta = terminal(na, w.a.t)!.t
+        const tb = terminal(nb, w.b.t)!.t
+        const ty = ta === 'dc' ? tb : ta
+        const auto = ty === 'pe' ? 'gy' : TERMINAL_COLOR[ty === 'dc' ? 'dc+' : ty]
+        const raw = w.color === 'auto' ? auto : WIRE_COLOR[w.color]
+        return (
+          <Cable
+            key={w.id}
+            wire={w}
+            points={routeCable(a, b, (i % 11) - 5, layout)}
+            routed
+            color={raw === 'gy' ? '#3fae4c' : cssVar(raw)}
+            gy={raw === 'gy'}
+            fault={false}
+            selected={false}
+            dim={false}
+            flow={null}
+            onSelect={none}
+          />
+        )
+      })}
+      <ContactShadows position={[layout.center[0], 0.005, layout.center[2]]} scale={30} opacity={0.35} blur={2.4} far={6} />
+    </>
+  )
+}
+
+/**
+ * Non-interactive rooftop view for the landing page: the camera circles the house and the sun
+ * crosses the sky as the page scrolls. Same layout and models as the 3D lab; the electrical
+ * readings it shows come from the engine (passed in as `live`).
+ */
+export function Showcase3D(props: ShowcaseProps) {
+  const [supported] = useState(hasWebGL)
+  if (!supported) return null
+  return (
+    <Canvas shadows dpr={[1, 2]} camera={{ fov: 40, near: 0.05, far: 200, position: [8, 6, 10] }} style={{ pointerEvents: 'none' }} aria-hidden>
+      <ShowcaseScene {...props} />
+    </Canvas>
   )
 }

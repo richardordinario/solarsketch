@@ -86,9 +86,9 @@ export function TopBar() {
 
   return (
     <header className="flex h-full min-w-0 items-stretch edge-b">
-      <div className="flex w-[248px] flex-none items-center gap-2.5 edge-r px-4">
+      <a href={href({ page: 'landing' })} aria-label={t('SolarSketch home')} className="flex w-[248px] flex-none items-center gap-2.5 edge-r px-4 text-foreground no-underline">
         <Brand />
-      </div>
+      </a>
 
       <nav aria-label={t('Main')} className="flex h-[46px] min-w-0 flex-1 basis-0 items-stretch overflow-hidden px-1.5">
         {NAV.map(({ label, route: r, Icon }) => {

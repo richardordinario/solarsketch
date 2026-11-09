@@ -2,9 +2,10 @@ import { useSyncExternalStore } from 'react'
 
 /**
  * Minimal hash router: `#/learn/solar-basics` -> ['learn', 'solar-basics']. No server config needed on a static host.
- * The site root (empty hash) opens My Projects; an unknown hash opens the Virtual Lab.
+ * The site root (empty hash) opens the landing page; an unknown hash opens the Virtual Lab.
  */
 export type Route =
+  | { page: 'landing' }
   | { page: 'lab' }
   | { page: 'learn'; lessonId?: string }
   | { page: 'components'; type?: string }
@@ -16,7 +17,7 @@ export type Route =
   | { page: 'terms' }
 
 /** Where the site root (no hash, `#` or `#/`) goes. */
-export const HOME: Route = { page: 'projects' }
+export const HOME: Route = { page: 'landing' }
 
 export function parseHash(hash: string): Route {
   if (/^#?\/?$/.test(hash)) return HOME
@@ -42,6 +43,8 @@ export function parseHash(hash: string): Route {
 
 export function href(route: Route) {
   switch (route.page) {
+    case 'landing':
+      return '#/'
     case 'lab':
       return '#/lab'
     case 'learn':
@@ -60,7 +63,7 @@ export function href(route: Route) {
  * server serve the app for any path, so `/challenges` (typed, or an old bookmark) would otherwise
  * stay in the address bar and every hash link would be appended to it (`/challenges#/components`).
  * `/challenges` becomes `#/challenges`; a path with a hash keeps the hash; the bare site root gets
- * the home route (`#/projects`). Returns the new URL, or null when the address is already canonical.
+ * the home route (`#/`, the landing page). Returns the new URL, or null when the address is already canonical.
  */
 export function canonicalUrl(pathname: string, search: string, hash: string, base: string): string | null {
   const root = base.endsWith('/') ? base : base + '/'

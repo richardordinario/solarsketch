@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 
 import { btnGhost, btnOutline, btnPrimary, dialogSurface } from '@/components/app/styles'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { LEGAL_DOCS, LEGAL_EFFECTIVE, LEGAL_VERSION } from '@/content/legal'
 import { LESSONS } from '@/content/lessons'
 import { EXPERTISE_OPTIONS, GOAL_OPTIONS, PURPOSE_OPTIONS, recommend } from '@/content/profile'
@@ -53,27 +53,41 @@ function Heading({ title, children }: { title: string; children?: ReactNode }) {
 
 const nowIso = () => new Date().toISOString()
 
-/** Buttons that expand the Privacy Policy or Terms of Service inline, in a scrollable box. */
+/** Buttons that open the Privacy Policy or Terms of Service in a dialog above the current one. */
 function LegalReader() {
   const T = useT()
   const lang = useLangStore((s) => s.lang)
   const [reading, setReading] = useState<'privacy' | 'terms' | null>(null)
+  const [shown, setShown] = useState<'privacy' | 'terms'>('privacy')
+  const doc = LEGAL_DOCS[shown]
   return (
     <>
       <div className="flex flex-wrap gap-2">
         {(['privacy', 'terms'] as const).map((id) => (
-          <Button key={id} variant="outline" aria-expanded={reading === id} aria-controls="legal-reader" className={cn(btnOutline, reading === id && 'bg-secondary text-active-fg')} onClick={() => setReading(reading === id ? null : id)}>
-            {reading === id ? T('Hide the {title}', { title: T(LEGAL_DOCS[id].title) }) : T('Read the {title}', { title: T(LEGAL_DOCS[id].title) })}
+          <Button key={id} variant="outline" aria-haspopup="dialog" className={btnOutline} onClick={() => { setShown(id); setReading(id) }}>
+            {T('Read the {title}', { title: T(LEGAL_DOCS[id].title) })}
           </Button>
         ))}
       </div>
-      {reading && (
-        <div id="legal-reader" tabIndex={0} role="region" aria-label={T(LEGAL_DOCS[reading].title)} className="mt-2 max-h-[260px] overflow-auto edge bg-field px-3 py-2.5 text-left outline-none focus-visible:[border-color:var(--primary)]">
-          <div className="mb-2 text-[12px] font-semibold text-pretty">{LEGAL_DOCS[reading].summary}</div>
-          {lang !== 'en' && <div className="mb-2 text-[11px] text-muted-foreground">{T('This document is available in English only.')}</div>}
-          <LegalBody doc={LEGAL_DOCS[reading]} compact />
-        </div>
-      )}
+      <Dialog open={reading !== null} onOpenChange={(open) => { if (!open) setReading(null) }}>
+        <DialogContent className={cn(dialogSurface, 'flex max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 sm:max-w-[680px]')}>
+          <div className="edge-b px-5 pt-5 pb-3 pr-12">
+            <DialogTitle className="m-0 text-[18px] leading-tight font-strong">{T(doc.title)}</DialogTitle>
+            <DialogDescription className="mt-1 text-[11px] text-muted-foreground">{T('Version {v} · effective {date}', { v: LEGAL_VERSION, date: LEGAL_EFFECTIVE })}</DialogDescription>
+          </div>
+          <div tabIndex={0} role="region" aria-label={T(doc.title)} className="min-h-0 flex-1 overflow-auto px-5 py-4 text-left outline-none focus-visible:[box-shadow:inset_0_0_0_1px_var(--primary)]">
+            <div className="mb-2 text-[12px] font-semibold text-pretty">{doc.summary}</div>
+            {lang !== 'en' && <div className="mb-2 text-[11px] text-muted-foreground">{T('This document is available in English only.')}</div>}
+            <LegalBody doc={doc} compact />
+          </div>
+          <div className="flex items-center justify-between gap-2 edge-t px-5 py-3">
+            <Button variant="ghost" className={btnGhost} onClick={() => setShown(shown === 'privacy' ? 'terms' : 'privacy')}>
+              {T('Read the {title}', { title: T(LEGAL_DOCS[shown === 'privacy' ? 'terms' : 'privacy'].title) })}
+            </Button>
+            <DialogClose render={<Button className={btnPrimary} />}>{T('Close')}</DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
